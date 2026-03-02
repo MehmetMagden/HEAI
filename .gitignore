@@ -1,0 +1,99 @@
+# ============================================
+# HocaefendiAI — .gitignore
+# ============================================
+
+# --- GİZLİ BİLGİLER (ASLA yükleme!) ---
+.env
+.env.*
+*.env
+secrets.json
+credentials.json
+token.json
+service_account.json
+google_credentials.json
+
+# --- PYTHON ---
+venv/
+.venv/
+env/
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pyc
+.Python
+*.egg-info/
+dist/
+build/
+*.egg
+.eggs/
+pip-log.txt
+pip-delete-this-directory.txt
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+*.cover
+.hypothesis/
+
+# --- VERİTABANI ---
+*.db
+*.sqlite
+*.sqlite3
+hocaefendi.db
+
+# --- YAPAY ZEKA VERİLERİ (büyük dosyalar) ---
+data/chroma_db/
+data/pdfs/
+data/audio/
+data/voices/
+*.gguf
+*.bin
+*.safetensors
+*.pt
+*.pth
+*.ckpt
+
+# --- LOG DOSYALARI ---
+*.log
+logs/
+*.out
+
+# --- IDE / EDİTÖR ---
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# --- DOCKER ---
+*.tar
+docker-compose.override.yml
+
+# --- FLUTTER ---
+frontend/hocaefendi_flutter/.dart_tool/
+frontend/hocaefendi_flutter/.flutter-plugins
+frontend/hocaefendi_flutter/.flutter-plugins-dependencies
+frontend/hocaefendi_flutter/.packages
+frontend/hocaefendi_flutter/build/
+frontend/hocaefendi_flutter/.pub-cache/
+frontend/hocaefendi_flutter/.pub/
+frontend/hocaefendi_flutter/pubspec.lock
+
+# --- GEÇİCİ DOSYALAR ---
+tmp/
+temp/
+*.tmp
+*.temp
+*.bak
+*.backup
+
+# --- SES / VİDEO (büyük medya dosyaları) ---
+*.wav
+*.mp3
+*.mp4
+*.avi
+*.mkv
