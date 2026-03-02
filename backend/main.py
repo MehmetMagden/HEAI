@@ -1,7 +1,7 @@
 # main.py
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from routers import chat
+from routers import chat, rag
 
 app = FastAPI(
     title="HocaefendiAI API",
@@ -9,7 +9,6 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# CORS — Flutter web için gerekli
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -18,14 +17,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Router'ları bağla
 app.include_router(chat.router, prefix="/chat", tags=["Chat"])
-
+app.include_router(rag.router,  prefix="/rag",  tags=["RAG"])
 
 @app.get("/")
 async def root():
-    return {
-        "app": "HocaefendiAI",
-        "version": "1.0.0",
-        "status": "çalışıyor ✅"
-    }
+    return {"app": "HocaefendiAI", "version": "1.0.0", "status": "çalışıyor ✅"}
