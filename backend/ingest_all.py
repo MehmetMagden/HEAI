@@ -1,89 +1,76 @@
-# ingest_all.py — 83 kitabı ChromaDB'ye yükle
+# C:\HEAI\backend\ingest_all.py
 import os
 import sys
 import time
+from pathlib import Path
 
-# Path ayarı
-sys.path.insert(0, os.path.dirname(__file__))
+# Backend klasörünü path'e ekle
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from services.rag_service import ingest_pdf, get_stats
 
-PDF_DIR = os.path.join(os.path.dirname(__file__), "data", "pdfs")
-
-
-def clean_title(filename: str) -> str:
-    """Dosya adından kitap başlığı çıkar."""
-    title = filename.replace(".pdf", "")
-    title = title.replace("_", " ").replace("-", " ")
-    # Baştaki/sondaki boşlukları temizle
-    return title.strip()
+PDF_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "pdfs")
 
 
 def ingest_all():
-    pdf_files = [f for f in os.listdir(PDF_DIR) if f.endswith(".pdf")]
+    pdf_files = sorted(Path(PDF_DIR).glob("*.pdf"))
 
     if not pdf_files:
-        print("❌ data/pdfs/ klasöründe PDF bulunamadı!")
+        print("❌ PDF bulunamadı! data/pdfs/ klasörünü kontrol et.")
         return
 
-    total = len(pdf_files)
-    print(f"{'='*55}")
+    print("=" * 55)
     print(f"  HocaefendiAI — Toplu Kitap Yükleme")
-    print(f"  {total} kitap bulundu")
-    print(f"{'='*55}\n")
+    print(f"  {len(pdf_files)} kitap bulundu")
+    print("=" * 55)
 
-    # Başlangıç istatistiği
     stats_before = get_stats()
-    print(f"📊 Mevcut chunk sayısı: {stats_before['total_chunks']}\n")
+    print(f"📊 Mevcut chunk sayısı: {stats_before['total_chunks']}")
 
-    success = 0
-    failed  = 0
-    total_chunks = 0
     start_time = time.time()
+    success = 0
+    failed = 0
+    total_chunks = 0
 
-    for i, filename in enumerate(sorted(pdf_files), 1):
-        pdf_path    = os.path.join(PDF_DIR, filename)
-        book_title  = clean_title(filename)
-        file_size   = os.path.getsize(pdf_path) / 1024  # KB
+    for idx, pdf_path in enumerate(pdf_files, 1):
+        book_name = pdf_path.stem[:50]
+        size_kb = pdf_path.stat().st_size // 1024
+        progress = int((idx / len(pdf_files)) * 30)
+        bar = "█" * progress + "░" * (30 - progress)
 
-        print(f"[{i:02d}/{total}] 📖 {book_title[:50]}")
-        print(f"         Boyut: {file_size:.0f} KB")
+        print(f"\n[{idx:02d}/{len(pdf_files)}] 📖 {book_name}")
+        print(f"         Boyut: {size_kb} KB")
 
         try:
-            t = time.time()
-            chunks = ingest_pdf(pdf_path, book_title)
-            elapsed = time.time() - t
+            # ← Artık sadece tek argüman!
+            chunks = ingest_pdf(str(pdf_path))
 
-            if chunks > 0:
-                print(f"         ✅ {chunks} chunk — {elapsed:.1f}s")
-                success += 1
-                total_chunks += chunks
-            else:
+            if chunks == 0:
                 print(f"         ⚠️  Metin çıkarılamadı (taranmış PDF olabilir)")
                 failed += 1
+            else:
+                print(f"         ✅ {chunks} chunk eklendi")
+                success += 1
+                total_chunks += chunks
 
         except Exception as e:
             print(f"         ❌ Hata: {e}")
             failed += 1
 
-        # İlerleme çubuğu
-        pct = int((i / total) * 30)
-        bar = "█" * pct + "░" * (30 - pct)
-        print(f"         [{bar}] %{i*100//total}\n")
+        print(f"         [{bar}] %{int(idx/len(pdf_files)*100)}")
 
-    # Özet
-    elapsed_total = time.time() - start_time
+    elapsed = (time.time() - start_time) / 60
     stats_after = get_stats()
 
-    print(f"\n{'='*55}")
+    print("\n" + "=" * 55)
     print(f"  ✅ TAMAMLANDI!")
-    print(f"{'='*55}")
+    print("=" * 55)
     print(f"  Başarılı  : {success} kitap")
     print(f"  Başarısız : {failed} kitap")
-    print(f"  Yeni chunk: {total_chunks:,}")
-    print(f"  Toplam DB : {stats_after['total_chunks']:,} chunk")
-    print(f"  Süre      : {elapsed_total/60:.1f} dakika")
-    print(f"{'='*55}")
+    print(f"  Yeni chunk: {total_chunks}")
+    print(f"  Toplam DB : {stats_after['total_chunks']} chunk")
+    print(f"  Süre      : {elapsed:.1f} dakika")
+    print("=" * 55)
 
 
 if __name__ == "__main__":
