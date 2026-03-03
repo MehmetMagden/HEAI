@@ -2,83 +2,136 @@
 import os
 import fitz  # PyMuPDF
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_ollama import OllamaEmbeddings
 from langchain_chroma import Chroma
-from dotenv import load_dotenv
+from sentence_transformers import SentenceTransformer
+from chromadb import PersistentClient
+import chromadb
 
-load_dotenv()
+# ── Yollar ──────────────────────────────────────────────────
+BASE_DIR    = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+CHROMA_PATH = os.path.join(BASE_DIR, "data", "chroma_db")
+PDF_DIR     = os.path.join(BASE_DIR, "data", "pdfs")
 
-OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
-OLLAMA_EMBED    = os.getenv("OLLAMA_EMBED_MODEL", "nomic-embed-text")
-CHROMA_PATH     = os.path.join(os.path.dirname(__file__), "..", "data", "chroma_db")
+# ── Türkçe Embedding Modeli ──────────────────────────────────
+print("📦 Embedding modeli yükleniyor...")
+_embed_model = SentenceTransformer("intfloat/multilingual-e5-large")
+print("✅ Embedding modeli hazır.")
+
+
+class TurkishEmbeddingFunction:
+    """ChromaDB için özel Türkçe embedding fonksiyonu."""
+
+    def name(self) -> str:
+        return "turkish_embedding_function"
+
+    def __call__(self, input: list[str]) -> list[list[float]]:
+        prefixed = ["passage: " + text for text in input]
+        embeddings = _embed_model.encode(prefixed, normalize_embeddings=True)
+        return embeddings.tolist()
+
+
+_embedding_fn = TurkishEmbeddingFunction()
 
 
 def get_vectorstore():
     """ChromaDB bağlantısını döndür."""
-    embeddings = OllamaEmbeddings(
-        model=OLLAMA_EMBED,
-        base_url=OLLAMA_BASE_URL
+    client = chromadb.PersistentClient(path=CHROMA_PATH)
+    collection = client.get_or_create_collection(
+        name="hocaefendi_books",
+        embedding_function=_embedding_fn,
+        metadata={"hnsw:space": "cosine"}
     )
-    return Chroma(
-        persist_directory=CHROMA_PATH,
-        embedding_function=embeddings,
-        collection_name="hocaefendi"
-    )
+    return collection
 
 
 def extract_text_from_pdf(pdf_path: str) -> str:
-    """PDF'den metin çıkar (PyMuPDF ile)."""
+    """PDF'den metin çıkar."""
     doc = fitz.open(pdf_path)
-    full_text = ""
+    text = ""
     for page in doc:
-        full_text += page.get_text()
+        text += page.get_text()
     doc.close()
-    return full_text
+    return text
 
 
-def ingest_pdf(pdf_path: str, book_title: str, author: str = "Fethullah Gülen") -> int:
-    """PDF'i işle ve ChromaDB'ye ekle. Döndürür: chunk sayısı"""
-    raw_text = extract_text_from_pdf(pdf_path)
-    if not raw_text.strip():
+def ingest_pdf(pdf_path: str) -> int:
+    """Tek PDF'yi ChromaDB'ye ekle."""
+    collection = get_vectorstore()   # ← Kendi collection'ını alıyor
+    book_name = os.path.splitext(os.path.basename(pdf_path))[0]
+    text = extract_text_from_pdf(pdf_path)
+
+    if len(text.strip()) < 100:
         return 0
 
     splitter = RecursiveCharacterTextSplitter(
-        chunk_size=1000,
-        chunk_overlap=200,
+        chunk_size=500,
+        chunk_overlap=50,
         separators=["\n\n", "\n", ".", " "]
     )
-    chunks = splitter.create_documents(
-        texts=[raw_text],
-        metadatas=[{
-            "book": book_title,
-            "author": author,
-            "source": os.path.basename(pdf_path),
-            "type": "kitap"
-        }]
-    )
+    chunks = splitter.split_text(text)
 
-    vectorstore = get_vectorstore()
-    vectorstore.add_documents(chunks)
-    return len(chunks)
+    documents = []
+    metadatas = []
+    ids = []
+
+    for i, chunk in enumerate(chunks):
+        if len(chunk.strip()) < 50:
+            continue
+        doc_id = f"{book_name}_{i}"
+        documents.append("passage: " + chunk)
+        metadatas.append({"source": book_name, "chunk_id": i})
+        ids.append(doc_id)
+
+    if documents:
+        # Büyük kitaplar için batch'ler halinde ekle (bellek taşmasın)
+        batch_size = 500
+        for i in range(0, len(documents), batch_size):
+            collection.add(
+                documents=documents[i:i+batch_size],
+                metadatas=metadatas[i:i+batch_size],
+                ids=ids[i:i+batch_size]
+            )
+
+    return len(documents)
 
 
 def retrieve_context(query: str, k: int = 4) -> str:
-    """Soruya en alakalı kitap parçalarını getir."""
-    vectorstore = get_vectorstore()
-    docs = vectorstore.similarity_search(query, k=k)
-    if not docs:
+    """Sorguya en yakın kitap parçalarını getir."""
+    collection = get_vectorstore()
+
+    # Sorgu için "query: " prefix
+    query_embedding = _embed_model.encode(
+        ["query: " + query],
+        normalize_embeddings=True
+    ).tolist()
+
+    results = collection.query(
+        query_embeddings=query_embedding,
+        n_results=k,
+        include=["documents", "metadatas", "distances"]
+    )
+
+    if not results["documents"] or not results["documents"][0]:
         return ""
 
     context_parts = []
-    for doc in docs:
-        book = doc.metadata.get("book", "Bilinmeyen Kitap")
-        context_parts.append(f"[{book}]\n{doc.page_content}")
+    for doc, meta, dist in zip(
+        results["documents"][0],
+        results["metadatas"][0],
+        results["distances"][0]
+    ):
+        # Çok uzak sonuçları filtrele (cosine distance > 0.5 = alakasız)
+        if dist > 0.5:
+            continue
+        source = meta.get("source", "Bilinmeyen Kaynak")
+        # "passage: " prefix'ini temizle
+        clean_doc = doc.replace("passage: ", "", 1)
+        context_parts.append(f"[{source}]\n{clean_doc}")
 
     return "\n\n---\n\n".join(context_parts)
 
 
 def get_stats() -> dict:
-    """Veritabanı istatistiklerini döndür."""
-    vectorstore = get_vectorstore()
-    count = vectorstore._collection.count()
-    return {"total_chunks": count}
+    """ChromaDB istatistiklerini döndür."""
+    collection = get_vectorstore()
+    return {"total_chunks": collection.count()}
