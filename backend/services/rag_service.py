@@ -6,6 +6,7 @@ from langchain_chroma import Chroma
 from sentence_transformers import SentenceTransformer
 from chromadb import PersistentClient
 import chromadb
+import torch
 
 # ── Yollar ──────────────────────────────────────────────────
 BASE_DIR    = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -14,7 +15,12 @@ PDF_DIR     = os.path.join(BASE_DIR, "data", "pdfs")
 
 # ── Türkçe Embedding Modeli ──────────────────────────────────
 print("📦 Embedding modeli yükleniyor...")
-_embed_model = SentenceTransformer("intfloat/multilingual-e5-large")
+# _embed_model = SentenceTransformer("intfloat/multilingual-e5-large")  # Sadece CPU kullanmak için, tavsiye etmem, pdf leri yüklemek 10 saat sürdü
+
+_device = "cuda" if torch.cuda.is_available() else "cpu"
+print(f"🖥️  Embedding cihazı: {_device.upper()}")
+_embed_model = SentenceTransformer("intfloat/multilingual-e5-large", device=_device)
+
 print("✅ Embedding modeli hazır.")
 
 

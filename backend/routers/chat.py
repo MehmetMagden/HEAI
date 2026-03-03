@@ -57,7 +57,7 @@ async def send_message(request: ChatRequest):
         context = rag_service.retrieve_context(request.message)
         if context:
             import re
-            sources = list(set(re.findall(r'$(.+?)$', context)))
+            sources = list(set(re.findall(r'\[(.+?)\]', context)))
 
     # 2. Mesajları oluştur ve LLM'e gönder
     messages = build_messages(request.message, request.history, context)
