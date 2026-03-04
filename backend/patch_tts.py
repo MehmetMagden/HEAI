@@ -1,0 +1,69 @@
+# patch_tts.py
+file_path = r"C:\HEAI\venv\lib\site-packages\TTS\tts\layers\xtts\stream_generator.py"
+
+with open(file_path, 'r', encoding='utf-8') as f:
+    content = f.read()
+
+# Mevcut import bloğunu bul (patch sonrası hali)
+old_import = """from transformers import (
+    DisjunctiveConstraint,
+    GenerationConfig,
+    GenerationMixin,
+    LogitsProcessorList,
+    PhrasalConstraint,
+    PreTrainedModel,
+    StoppingCriteriaList,
+)
+try:
+    from transformers import BeamSearchScorer, ConstrainedBeamSearchScorer
+except ImportError:
+    BeamSearchScorer = None
+    ConstrainedBeamSearchScorer = None
+try:
+    from transformers.generation.utils import GenerateOutput, SampleOutput, logger
+except ImportError:
+    from transformers.utils import logging as hf_logging
+    logger = hf_logging.get_logger(__name__)
+    GenerateOutput = None
+    SampleOutput = None"""
+
+new_import = """try:
+    from transformers import (
+        BeamSearchScorer,
+        ConstrainedBeamSearchScorer,
+        DisjunctiveConstraint,
+        GenerationConfig,
+        GenerationMixin,
+        LogitsProcessorList,
+        PhrasalConstraint,
+        PreTrainedModel,
+        StoppingCriteriaList,
+    )
+except ImportError:
+    from transformers import (
+        GenerationConfig,
+        GenerationMixin,
+        LogitsProcessorList,
+        PreTrainedModel,
+        StoppingCriteriaList,
+    )
+    BeamSearchScorer = None
+    ConstrainedBeamSearchScorer = None
+    DisjunctiveConstraint = None
+    PhrasalConstraint = None
+try:
+    from transformers.generation.utils import GenerateOutput, SampleOutput, logger
+except ImportError:
+    from transformers.utils import logging as hf_logging
+    logger = hf_logging.get_logger(__name__)
+    GenerateOutput = None
+    SampleOutput = None"""
+
+new_content = content.replace(old_import, new_import)
+
+if new_content == content:
+    print("❌ HATA: Blok bulunamadı!")
+else:
+    with open(file_path, 'w', encoding='utf-8') as f:
+        f.write(new_content)
+    print("✅ Patch v2 başarıyla uygulandı!")
