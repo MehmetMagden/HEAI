@@ -1,0 +1,40 @@
+from fastapi import APIRouter, HTTPException
+from fastapi.responses import FileResponse
+from pathlib import Path
+from services.emotion_service import (
+    get_images_for_emotion,
+    get_all_emotions_status,
+    EMOTION_DIR
+)
+
+router = APIRouter(prefix="/emotion", tags=["emotion"])
+
+
+@router.get("/status")
+def emotion_status():
+    """Her duygu kategorisindeki görsel sayısını gösterir."""
+    return get_all_emotions_status()
+
+
+@router.get("/images/{emotion}")
+def list_emotion_images(emotion: str):
+    """Duyguya ait görsel listesini döndürür."""
+    valid = ["huzur", "huzun", "cosku", "sefkat", "tefekkur"]
+    if emotion not in valid:
+        raise HTTPException(status_code=400, detail=f"Geçersiz duygu. Seçenekler: {valid}")
+
+    images = get_images_for_emotion(emotion)
+    return {
+        "emotion": emotion,
+        "count": len(images),
+        "images": [f"/emotion/image/{emotion}/{img}" for img in images]
+    }
+
+
+@router.get("/image/{emotion}/{filename}")
+def get_emotion_image(emotion: str, filename: str):
+    """Belirli bir görseli döndürür."""
+    image_path = EMOTION_DIR / emotion / filename
+    if not image_path.exists():
+        raise HTTPException(status_code=404, detail="Görsel bulunamadı")
+    return FileResponse(str(image_path))

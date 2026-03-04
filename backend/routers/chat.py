@@ -4,6 +4,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from prompts.hocaefendi_prompt import SYSTEM_PROMPT
 from services import llm_service, rag_service
+from services.emotion_service import detect_emotion
 
 router = APIRouter()
 
