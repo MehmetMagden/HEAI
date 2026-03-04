@@ -3,6 +3,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from routers import chat, rag
 from routers.voice import router as voice_router
+from routers.emotion import router as emotion_router
 
 app = FastAPI(
     title="HocaefendiAI API",
@@ -21,6 +22,7 @@ app.add_middleware(
 app.include_router(chat.router, prefix="/chat", tags=["Chat"])
 app.include_router(rag.router,  prefix="/rag",  tags=["RAG"])
 app.include_router(voice_router)
+app.include_router(emotion_router)
 
 @app.get("/")
 async def root():
