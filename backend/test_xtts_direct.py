@@ -1,0 +1,49 @@
+import torch
+import soundfile as sf
+import numpy as np
+
+device = "cuda" if torch.cuda.is_available() else "cpu"
+print(f"Device: {device}")
+
+from TTS.tts.configs.xtts_config import XttsConfig
+from TTS.tts.models.xtts import Xtts
+
+# Model nerede?
+import os
+tts_home = os.path.expanduser("~")
+model_dir = os.path.join(tts_home, "AppData", "Local", "tts", 
+                         "tts_models--multilingual--multi-dataset--xtts_v2")
+print(f"Model dizini: {model_dir}")
+print(f"Mevcut mu: {os.path.exists(model_dir)}")
+
+config = XttsConfig()
+config.load_json(os.path.join(model_dir, "config.json"))
+model = Xtts.init_from_config(config)
+model.load_checkpoint(config, checkpoint_dir=model_dir, eval=True)
+model.to(device)
+print("✅ Model yüklendi!")
+
+ref_audio = r"C:\HEAI\backend\data\voice_samples\reference_clean.wav"
+gpt_cond_latent, speaker_embedding = model.get_conditioning_latents(
+    audio_path=[ref_audio]
+)
+print("✅ Speaker embedding alındı!")
+
+outputs = model.inference(
+    text="Merhaba, bu bir test cümlesidir.",
+    language="tr",
+    gpt_cond_latent=gpt_cond_latent,
+    speaker_embedding=speaker_embedding,
+    temperature=0.7,
+)
+
+wav = outputs["wav"]
+print(f"WAV tipi: {type(wav)}")
+print(f"WAV shape: {wav.shape}")
+print(f"WAV dtype: {wav.dtype}")
+print(f"WAV min/max: {wav.min():.4f} / {wav.max():.4f}")
+print(f"WAV mean abs: {np.abs(wav).mean():.4f}")
+
+# 24000 Hz ile kaydet (XTTS v2 çıkışı 24kHz!)
+sf.write("direct_test.wav", wav, 24000)
+print("✅ direct_test.wav kaydedildi — çal ve dinle!")
