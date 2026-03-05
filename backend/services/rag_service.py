@@ -102,10 +102,8 @@ def ingest_pdf(pdf_path: str) -> int:
 
 
 def retrieve_context(query: str, k: int = 4) -> str:
-    """Sorguya en yakın kitap parçalarını getir."""
     collection = get_vectorstore()
 
-    # Sorgu için "query: " prefix
     query_embedding = _embed_model.encode(
         ["query: " + query],
         normalize_embeddings=True
@@ -118,7 +116,18 @@ def retrieve_context(query: str, k: int = 4) -> str:
     )
 
     if not results["documents"] or not results["documents"][0]:
+        print("⚠️ RAG: Hiç sonuç bulunamadı!")
         return ""
+
+    # ── DEBUG: Mesafeleri göster ──────────────────────────────
+    print(f"🔍 RAG sorgu: '{query[:50]}'")
+    for i, (meta, dist) in enumerate(zip(
+        results["metadatas"][0],
+        results["distances"][0]
+    )):
+        status = "✅" if dist <= 0.5 else "❌ FİLTRELENDİ"
+        print(f"  [{i+1}] dist={dist:.4f} {status} → {meta.get('source','?')[:40]}")
+    # ─────────────────────────────────────────────────────────
 
     context_parts = []
     for doc, meta, dist in zip(
@@ -126,16 +135,13 @@ def retrieve_context(query: str, k: int = 4) -> str:
         results["metadatas"][0],
         results["distances"][0]
     ):
-        # Çok uzak sonuçları filtrele (cosine distance > 0.5 = alakasız)
-        if dist > 0.5:
+        if dist > 0.7:
             continue
         source = meta.get("source", "Bilinmeyen Kaynak")
-        # "passage: " prefix'ini temizle
         clean_doc = doc.replace("passage: ", "", 1)
         context_parts.append(f"[{source}]\n{clean_doc}")
 
     return "\n\n---\n\n".join(context_parts)
-
 
 def get_stats() -> dict:
     """ChromaDB istatistiklerini döndür."""

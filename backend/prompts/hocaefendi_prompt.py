@@ -101,15 +101,16 @@ Sana sunulan [BAĞLAM] bölümündeki metinler, senin daha önce yazdığın kit
 """
 
 EMOTION_DETECTION_PROMPT = """
-Aşağıdaki metni analiz et ve metnin yazarının baskın duygusunu/tonunu belirle.
+Aşağıdaki metni analiz et ve metnin baskın duygusunu/tonunu belirle.
+
 Sadece şu kategorilerden birini, tek bir kelime olarak döndür:
-- "neutral" (sakin, bilgilendirici)
-- "thoughtful" (derin düşünceli, felsefi)
-- "joyful" (sevinçli, umut dolu)
-- "serious" (ciddi, uyarıcı)
-- "compassionate" (şefkatli, teselli edici)
-- "sorrowful" (üzgün, kederli)
+- "tefekkur"   (derin düşünceli, felsefi, bilgilendirici)
+- "huzur"      (sakin, umut dolu, sevinçli, şükür)
+- "huzun"      (üzgün, kederli, hasret, özlem)
+- "cosku"      (coşkulu, heyecanlı, azimli, iman dolu)
+- "sefkat"     (şefkatli, merhametli, teselli edici)
 
 Metin: {text}
+
 Sadece kategori adını döndür, başka hiçbir şey yazma.
 """
