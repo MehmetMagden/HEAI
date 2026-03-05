@@ -1,13 +1,13 @@
-# routers/chat.py
+# backend/routers/chat.py
 from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from prompts.hocaefendi_prompt import SYSTEM_PROMPT
 from services import llm_service, rag_service
 from services.emotion_service import detect_emotion
+import re
 
 router = APIRouter()
-
 
 class ChatRequest(BaseModel):
     message: str
@@ -15,16 +15,13 @@ class ChatRequest(BaseModel):
     use_rag: bool = True
     stream: bool = False
 
-
 class ChatResponse(BaseModel):
     text: str
     emotion: str
     sources: list[str] = []
 
-
 def build_messages(user_message: str, history: list[dict], context: str = "") -> list[dict]:
     """Sistem promptu + geçmiş + yeni mesajı birleştir."""
-
     # Sohbet geçmişini düz metin olarak hazırla
     chat_history_text = ""
     if history:
@@ -32,7 +29,7 @@ def build_messages(user_message: str, history: list[dict], context: str = "") ->
         for msg in history[-10:]:
             role = "Siz" if msg.get("role") == "user" else "Hocaefendi"
             lines.append(f"{role}: {msg.get('content', '')}")
-        chat_history_text = "\n".join(lines)
+        chat_history_text = "\\n".join(lines)
 
     # Prompt'taki {context} ve {chat_history} yerlerine koy
     system_content = SYSTEM_PROMPT.replace(
@@ -46,29 +43,37 @@ def build_messages(user_message: str, history: list[dict], context: str = "") ->
 
     return messages
 
-
 @router.post("/message", response_model=ChatResponse)
 async def send_message(request: ChatRequest):
-    """Normal (tek seferde) yanıt."""
-
-    # 1. RAG: İlgili kitap parçalarını getir
     context = ""
     sources = []
     if request.use_rag:
         context = rag_service.retrieve_context(request.message)
+        
+        # DEBUG logları mevcut haliyle kalabilir veya kaldırılabilir.
+        print(f"📚 Context uzunluğu: {len(context)} karakter")
+        print(f"📚 Context önizleme: {context[:150]}")
+        
         if context:
-            import re
-            sources = list(set(re.findall(r'\[(.+?)\]', context)))
+            # --- GÜNCELLENEN BÖLÜM BAŞLANGICI ---
+            # 1. Regex Düzeltmesi: '[kaynak_adı]' formatını yakalamak için r'\[(.+?)\]' kullanıldı.
+            # 2. Tekilleştirme Yöntemi: list(dict.fromkeys(...)) ile hem daha performanslı
+            #    hem de kaynakların metindeki ilk geçiş sırasını koruyan bir tekilleştirme yapıldı.
+            found_sources = re.findall(r'\[(.+?)\]', context)
+            if found_sources:
+                sources = list(dict.fromkeys(found_sources))
+            
+            print(f"📚 Bulunan sources: {sources}") # Güncellenmiş debug çıktısı
+            # --- GÜNCELLENEN BÖLÜM SONU ---
 
-    # 2. Mesajları oluştur ve LLM'e gönder
     messages = build_messages(request.message, request.history, context)
     response_text = await llm_service.chat(messages)
+    emotion = detect_emotion(response_text)
+    
+    # İsteğe bağlı: Kullanıcıya daha temiz bir metin sunmak için yanıttan kaynak etiketlerini temizle
+    cleaned_response_text = re.sub(r'\s*\[.*?\]\s*', '', response_text).strip()
 
-    # 3. Duygu analizi
-    emotion = await llm_service.detect_emotion(response_text)
-
-    return ChatResponse(text=response_text, emotion=emotion, sources=sources)
-
+    return ChatResponse(text=cleaned_response_text, emotion=emotion, sources=sources)
 
 @router.post("/stream")
 async def stream_message(request: ChatRequest):
@@ -84,7 +89,6 @@ async def stream_message(request: ChatRequest):
             yield token
 
     return StreamingResponse(generate(), media_type="text/plain")
-
 
 @router.get("/health")
 async def health():
