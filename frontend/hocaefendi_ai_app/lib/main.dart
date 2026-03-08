@@ -4,6 +4,8 @@ import 'screens/auth_screen.dart';
 import 'screens/chat_screen.dart';
 import 'services/auth_service.dart';
 
+
+
 void main() {
   runApp(const ProviderScope(child: MyApp()));
 }
