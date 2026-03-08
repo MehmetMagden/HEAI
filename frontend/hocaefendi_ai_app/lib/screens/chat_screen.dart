@@ -19,6 +19,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   final TextEditingController _controller = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   String _userName = 'Misafir';
+  String _userPhoto = '';
 
   @override
   void initState() {
@@ -30,6 +31,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final info = await AuthService.getUserInfo();
     setState(() {
       _userName = info['name']?.isNotEmpty == true ? info['name']! : 'Misafir';
+      _userPhoto = info['photo'] ?? '';  // ← ekle
     });
   }
 
@@ -59,19 +61,48 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       backgroundColor: const Color(0xFF1A1A1A),
       appBar: AppBar(
         backgroundColor: const Color(0xFF1B5E20),
-        title: Column(
+        title: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('HocaefendiAI',
-                style: TextStyle(color: Colors.white, fontSize: 18)),
-            Text(
-              _userName,
-              style: const TextStyle(color: Colors.white70, fontSize: 12),
+            if (_userPhoto.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: CircleAvatar(
+                  radius: 16,
+                  backgroundImage: NetworkImage(_userPhoto),
+                ),
+              )
+            else
+              const Padding(
+                padding: EdgeInsets.only(right: 8),
+                child: CircleAvatar(
+                  radius: 16,
+                  backgroundColor: Colors.white24,
+                  child: Icon(Icons.person, size: 18, color: Colors.white),
+                ),
+              ),
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('HocaefendiAI',
+                    style: TextStyle(color: Colors.white, fontSize: 16)),
+                Text(_userName,
+                    style: const TextStyle(color: Colors.white70, fontSize: 11)),
+              ],
             ),
           ],
         ),
         centerTitle: true,
         actions: [
+          IconButton(
+            icon: const Icon(Icons.delete_outline, color: Colors.white),
+            tooltip: 'Sohbeti temizle',
+            onPressed: () {
+              ref.read(chatProvider.notifier).clearHistory();
+            },
+          ),
+
           IconButton(
             icon: const Icon(Icons.logout, color: Colors.white),
             tooltip: 'Çıkış yap',
