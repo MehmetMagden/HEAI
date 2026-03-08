@@ -90,7 +90,7 @@ async def detect_emotion(text: str) -> str:
         "options": {"num_ctx": 2048, "temperature": 0.1}
     }
 
-    async with httpx.AsyncClient(timeout=30.0) as client:
+    async with httpx.AsyncClient(timeout=120.0) as client:
         response = await client.post(
             f"{OLLAMA_BASE_URL}/api/chat",
             json=payload

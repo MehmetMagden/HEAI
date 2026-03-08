@@ -1,0 +1,100 @@
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+
+class ApiService {
+  static const String baseUrl = 'https://qld-erik-hop-instantly.trycloudflare.com';
+
+  // Sohbet mesajı gönder
+  static Future<Map<String, dynamic>> sendMessage({
+    required String message,
+    List<Map<String, dynamic>> history = const [],
+    bool useRag = true,
+  }) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/chat/message'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'message': message,
+        'history': history,
+        'use_rag': useRag,
+        'stream': false,
+      }),
+    );
+
+    if (response.statusCode == 200) {
+      return jsonDecode(utf8.decode(response.bodyBytes));
+    } else {
+      throw Exception('Sunucu hatası: ${response.statusCode}');
+    }
+  }
+
+  // Mevcut sendMessage metodunun altına ekle: (steaming, kelimelerin teker teker ekrana yagmasi)
+  static Stream<String> streamMessage({
+    required String message,
+    List<Map<String, dynamic>> history = const [],
+  }) async* {
+    final request = http.Request(
+      'POST',
+      Uri.parse('$baseUrl/chat/stream'),
+    );
+    request.headers['Content-Type'] = 'application/json';
+    request.body = jsonEncode({
+      'message': message,
+      'history': history,
+      'use_rag': true,
+      'stream': true,
+    });
+
+    final client = http.Client();
+    try {
+      final response = await client.send(request);
+      await for (final chunk in response.stream.transform(utf8.decoder)) {
+        yield chunk;
+      }
+    } finally {
+      client.close();
+    }
+  }
+
+  // Sağlık kontrolü
+  static Future<bool> healthCheck() async {
+    try {
+      final response = await http.get(Uri.parse('$baseUrl/'));
+      return response.statusCode == 200;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  // Sesi metne çevir (STT)
+  static Future<String> transcribeAudio(List<int> audioBytes) async {
+    final request = http.MultipartRequest(
+      'POST',
+      Uri.parse('$baseUrl/voice/transcribe'),
+    );
+    request.files.add(http.MultipartFile.fromBytes(
+      'file',
+      audioBytes,
+      filename: 'recording.wav',  // ← pcm değil wav
+    ));
+    final response = await request.send();
+    final body = await response.stream.bytesToString();
+    final json = jsonDecode(body);
+    return json['text'] as String;
+  }
+
+  // Metni sese çevir (TTS)
+  static Future<List<int>> synthesizeSpeech(String text) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/voice/synthesize'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'text': text}),
+    );
+    if (response.statusCode == 200) {
+      return response.bodyBytes;
+    } else {
+      throw Exception('TTS hatası: ${response.statusCode}');
+    }
+  }
+
+}

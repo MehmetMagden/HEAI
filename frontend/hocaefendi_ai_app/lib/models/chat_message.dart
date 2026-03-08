@@ -1,13 +1,11 @@
-enum MessageSender { user, ai }
-
 class ChatMessage {
   final String text;
-  final MessageSender sender;
+  final bool isUserMessage;
   final DateTime timestamp;
 
   ChatMessage({
     required this.text,
-    required this.sender,
+    required this.isUserMessage,
     required this.timestamp,
   });
 }
