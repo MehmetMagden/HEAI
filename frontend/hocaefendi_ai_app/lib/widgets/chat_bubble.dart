@@ -8,31 +8,28 @@ class ChatBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isUserMessage = message.sender == MessageSender.user;
-    
+    final isUser = message.isUserMessage;
+
     return Align(
-      // Mesajın kullanıcıya mı yoksa AI'a mı ait olduğuna göre hizalama yap
-      alignment: isUserMessage ? Alignment.centerRight : Alignment.centerLeft,
+      alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 5, horizontal: 10),
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 15),
+        margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 12),
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
+        constraints: BoxConstraints(
+          maxWidth: MediaQuery.of(context).size.width * 0.75,
+        ),
         decoration: BoxDecoration(
-          // Mesajın sahibine göre renk belirle
-          color: isUserMessage ? Colors.blue[700] : Colors.grey[600],
+          color: isUser ? const Color(0xFF1B5E20) : const Color(0xFF2C2C2C),
           borderRadius: BorderRadius.only(
             topLeft: const Radius.circular(16),
             topRight: const Radius.circular(16),
-            bottomLeft: isUserMessage ? const Radius.circular(16) : Radius.zero,
-            bottomRight: isUserMessage ? Radius.zero : const Radius.circular(16),
+            bottomLeft: Radius.circular(isUser ? 16 : 4),
+            bottomRight: Radius.circular(isUser ? 4 : 16),
           ),
         ),
-        constraints: BoxConstraints(
-          // Mesaj balonunun maksimum genişliğini ekranın %75'i ile sınırla
-          maxWidth: MediaQuery.of(context).size.width * 0.75,
-        ),
-        child: Text(
+        child: SelectableText(
           message.text,
-          style: const TextStyle(color: Colors.white, fontSize: 16),
+          style: const TextStyle(color: Colors.white, fontSize: 15),
         ),
       ),
     );

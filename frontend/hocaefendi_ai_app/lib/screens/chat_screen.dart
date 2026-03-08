@@ -1,11 +1,13 @@
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/chat_provider.dart';
 import '../widgets/chat_bubble.dart';
-import '../models/chat_message.dart';
+import '../widgets/emotion_image_widget.dart';
+import 'package:flutter/services.dart';
+import '../widgets/voice_button.dart';
+import '../services/auth_service.dart';
+import 'auth_screen.dart';
 
-// ConsumerWidget, Riverpod provider'larını dinlemek için kullanılır.
 class ChatScreen extends ConsumerStatefulWidget {
   const ChatScreen({super.key});
 
@@ -14,110 +16,132 @@ class ChatScreen extends ConsumerStatefulWidget {
 }
 
 class _ChatScreenState extends ConsumerState<ChatScreen> {
-  final _textController = TextEditingController();
-  final _scrollController = ScrollController();
-
-  @override
-  void dispose() {
-    _textController.dispose();
-    _scrollController.dispose();
-    super.dispose();
-  }
+  final TextEditingController _controller = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
 
   void _sendMessage() {
-    final text = _textController.text.trim();
-    if (text.isNotEmpty) {
-      // Kullanıcı mesajını provider aracılığıyla state'e ekle
-      ref.read(chatProvider.notifier).addMessage(text, MessageSender.user);
-      _textController.clear();
-
-      // TODO: Backend'e istek gönderip AI cevabını alacak mantık buraya eklenecek.
-      // Şimdilik sahte bir AI cevabı ekleyelim.
-      Future.delayed(const Duration(seconds: 1), () {
-        ref.read(chatProvider.notifier).addMessage("Bu, yapay zekadan gelen bir yanıttır.", MessageSender.ai);
-      });
-    }
+    final text = _controller.text.trim();
+    if (text.isEmpty) return;
+    _controller.clear();
+    ref.read(chatProvider.notifier).sendMessage(text);
+    Future.delayed(const Duration(milliseconds: 300), _scrollToBottom);
   }
 
   void _scrollToBottom() {
-    // Yeni mesaj geldiğinde listenin en altına kaydır
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_scrollController.hasClients) {
-        _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOut,
-        );
-      }
-    });
+    if (_scrollController.hasClients) {
+      _scrollController.animateTo(
+        _scrollController.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    // chatProvider'ı dinle. Mesaj listesi değiştiğinde bu widget yeniden çizilir.
-    final messages = ref.watch(chatProvider);
-    
-    // Her build işleminde listenin sonuna kaydırmayı tetikle
-    ref.listen(chatProvider, (_, __) => _scrollToBottom());
+    final chatState = ref.watch(chatProvider);
 
     return Scaffold(
+      backgroundColor: const Color(0xFF1A1A1A),
       appBar: AppBar(
-        title: const Text('HocaefendiAI'),
-        backgroundColor: Colors.blueGrey[800],
-        foregroundColor: Colors.white,
+        backgroundColor: const Color(0xFF1B5E20),
+        title: const Text('HocaefendiAI', style: TextStyle(color: Colors.white)),
+        centerTitle: true,
+        actions: [
+          // const VoiceButton(),
+          // const SizedBox(width: 8),
+
+          IconButton( // cikis buttonu
+            icon: const Icon(Icons.logout, color: Colors.white),
+            tooltip: 'Çıkış yap',
+            onPressed: () async {
+              await AuthService.signOut();
+              if (context.mounted) {
+                Navigator.of(context).pushReplacement(
+                  MaterialPageRoute(builder: (_) => const AuthScreen()),
+                );
+              }
+            },
+          ),
+
+          IconButton(  // kopyala buttonu
+            icon: const Icon(Icons.copy, color: Colors.white),
+            tooltip: 'Tüm sohbeti kopyala',
+            onPressed: () {
+              final chatState = ref.read(chatProvider);
+              final allText = chatState.messages
+                  .map((m) => '${m.isUserMessage ? "Sen" : "Hocaefendi"}: ${m.text}')
+                  .join('\n\n');
+              Clipboard.setData(ClipboardData(text: allText));
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Sohbet kopyalandı!')),
+              );
+            },
+          ),
+        ],
       ),
       body: Column(
         children: [
+          // Duygu görseli
+          const EmotionImageWidget(),
+
           // Mesaj listesi
           Expanded(
             child: ListView.builder(
               controller: _scrollController,
-              padding: const EdgeInsets.all(8.0),
-              itemCount: messages.length,
+              itemCount: chatState.messages.length,
               itemBuilder: (context, index) {
-                return ChatBubble(message: messages[index]);
+                return ChatBubble(message: chatState.messages[index]);
               },
             ),
           ),
-          // Metin giriş alanı
-          _buildTextInputArea(),
-        ],
-      ),
-    );
-  }
 
-  Widget _buildTextInputArea() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 10.0),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        boxShadow: [
-          BoxShadow(
-            offset: const Offset(0, -1),
-            blurRadius: 2,
-            color: Colors.black.withOpacity(0.1),
+          // Yükleniyor göstergesi
+          if (chatState.isLoading)
+            const Padding(
+              padding: EdgeInsets.all(8),
+              child: CircularProgressIndicator(color: Color(0xFF1B5E20)),
+            ),
+
+          // Mesaj giriş alanı
+          Container(
+            padding: const EdgeInsets.all(8),
+            color: const Color(0xFF2C2C2C),
+            child: Row(
+              children: [
+                const VoiceButton(),
+                const SizedBox(width: 8),
+
+                Expanded(
+                  child: TextField(
+                    controller: _controller,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: InputDecoration(
+                      hintText: 'Mesajınızı yazın...',
+                      hintStyle: const TextStyle(color: Colors.white54),
+                      filled: true,
+                      fillColor: const Color(0xFF3C3C3C),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(24),
+                        borderSide: BorderSide.none,
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 10,
+                      ),
+                    ),
+                    onSubmitted: (_) => _sendMessage(),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                IconButton(
+                  onPressed: chatState.isLoading ? null : _sendMessage,
+                  icon: const Icon(Icons.send, color: Color(0xFF1B5E20)),
+                  iconSize: 28,
+                ),
+              ],
+            ),
           ),
         ],
-      ),
-      child: SafeArea(
-        child: Row(
-          children: [
-            Expanded(
-              child: TextField(
-                controller: _textController,
-                decoration: const InputDecoration.collapsed(
-                  hintText: 'Bir mesaj yazın...',
-                ),
-                onSubmitted: (_) => _sendMessage(),
-              ),
-            ),
-            IconButton(
-              icon: const Icon(Icons.send),
-              onPressed: _sendMessage,
-              color: Theme.of(context).primaryColor,
-            ),
-          ],
-        ),
       ),
     );
   }
