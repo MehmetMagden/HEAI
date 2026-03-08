@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class ApiService {
-  static const String baseUrl = 'https://qld-erik-hop-instantly.trycloudflare.com';
+  static const String baseUrl = 'https://laptops-knitting-mariah-given.trycloudflare.com';
 
   // Sohbet mesajı gönder
   static Future<Map<String, dynamic>> sendMessage({
