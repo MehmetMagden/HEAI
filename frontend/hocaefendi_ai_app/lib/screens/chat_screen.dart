@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/chat_provider.dart';
 import '../widgets/chat_bubble.dart';
 import '../widgets/emotion_image_widget.dart';
-import 'package:flutter/services.dart';
 import '../widgets/voice_button.dart';
 import '../services/auth_service.dart';
 import 'auth_screen.dart';
@@ -18,6 +18,20 @@ class ChatScreen extends ConsumerStatefulWidget {
 class _ChatScreenState extends ConsumerState<ChatScreen> {
   final TextEditingController _controller = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  String _userName = 'Misafir';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserName();
+  }
+
+  Future<void> _loadUserName() async {
+    final info = await AuthService.getUserInfo();
+    setState(() {
+      _userName = info['name']?.isNotEmpty == true ? info['name']! : 'Misafir';
+    });
+  }
 
   void _sendMessage() {
     final text = _controller.text.trim();
@@ -45,13 +59,20 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       backgroundColor: const Color(0xFF1A1A1A),
       appBar: AppBar(
         backgroundColor: const Color(0xFF1B5E20),
-        title: const Text('HocaefendiAI', style: TextStyle(color: Colors.white)),
+        title: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('HocaefendiAI',
+                style: TextStyle(color: Colors.white, fontSize: 18)),
+            Text(
+              _userName,
+              style: const TextStyle(color: Colors.white70, fontSize: 12),
+            ),
+          ],
+        ),
         centerTitle: true,
         actions: [
-          // const VoiceButton(),
-          // const SizedBox(width: 8),
-
-          IconButton( // cikis buttonu
+          IconButton(
             icon: const Icon(Icons.logout, color: Colors.white),
             tooltip: 'Çıkış yap',
             onPressed: () async {
@@ -63,14 +84,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               }
             },
           ),
-
-          IconButton(  // kopyala buttonu
+          IconButton(
             icon: const Icon(Icons.copy, color: Colors.white),
             tooltip: 'Tüm sohbeti kopyala',
             onPressed: () {
               final chatState = ref.read(chatProvider);
               final allText = chatState.messages
-                  .map((m) => '${m.isUserMessage ? "Sen" : "Hocaefendi"}: ${m.text}')
+                  .map((m) =>
+                      '${m.isUserMessage ? "Sen" : "Hocaefendi"}: ${m.text}')
                   .join('\n\n');
               Clipboard.setData(ClipboardData(text: allText));
               ScaffoldMessenger.of(context).showSnackBar(
@@ -82,10 +103,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       ),
       body: Column(
         children: [
-          // Duygu görseli
           const EmotionImageWidget(),
-
-          // Mesaj listesi
           Expanded(
             child: ListView.builder(
               controller: _scrollController,
@@ -95,15 +113,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               },
             ),
           ),
-
-          // Yükleniyor göstergesi
           if (chatState.isLoading)
             const Padding(
               padding: EdgeInsets.all(8),
               child: CircularProgressIndicator(color: Color(0xFF1B5E20)),
             ),
-
-          // Mesaj giriş alanı
           Container(
             padding: const EdgeInsets.all(8),
             color: const Color(0xFF2C2C2C),
@@ -111,7 +125,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               children: [
                 const VoiceButton(),
                 const SizedBox(width: 8),
-
                 Expanded(
                   child: TextField(
                     controller: _controller,
