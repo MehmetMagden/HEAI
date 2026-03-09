@@ -1,0 +1,24 @@
+================================================================================
+DOSYA BİLGİSİ
+--------------------------------------------------------------------------------
+  Ad            : test_gpu.py
+  Dil           : Python
+  Yol           : backend\test_gpu.py
+  Son Değişim   : 2026-03-03 21:46:31
+  Satır         : 9
+  Sıra          : 32 / 38
+================================================================================
+
+# test_gpu.py
+import torch
+
+if torch.cuda.is_available():
+    print(f"CUDA bulundu! Kullanılabilir GPU: {torch.cuda.get_device_name(0)}")
+    print(f"PyTorch versiyonu: {torch.__version__}")
+    print(f"CUDA versiyonu: {torch.version.cuda}")
+else:
+    print("UYARI: CUDA kullanılamıyor. Lütfen PyTorch kurulumunuzu ve NVIDIA sürücülerinizi kontrol edin.")
+
+================================================================================
+# DOSYA SONU: backend\test_gpu.py
+================================================================================

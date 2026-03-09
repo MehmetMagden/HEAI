@@ -1,3 +1,14 @@
+================================================================================
+DOSYA BİLGİSİ
+--------------------------------------------------------------------------------
+  Ad            : chat.py
+  Dil           : Python
+  Yol           : backend\routers\chat.py
+  Son Değişim   : 2026-03-09 20:15:08
+  Satır         : 115
+  Sıra          : 24 / 38
+================================================================================
+
 # backend/routers/chat.py
 from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
@@ -113,3 +124,7 @@ async def stream_message(request: ChatRequest):
 @router.get("/health")
 async def health():
     return {"status": "ok", "model": llm_service.OLLAMA_MODEL}
+
+================================================================================
+# DOSYA SONU: backend\routers\chat.py
+================================================================================

@@ -1,0 +1,69 @@
+================================================================================
+KOD TOPLAMA İNDEKSİ
+================================================================================
+Oluşturulma Tarihi : 2026-03-09 20:28:23
+Kaynak Klasör      : c:\HEAI
+Çıktı Klasörü      : c:\HEAI\kod_ciktisi_20260309_202823
+Toplam Dosya       : 38
+Toplam Satır       : 3032
+Grup Sayısı        : 8
+================================================================================
+
+GRUPLAR
+--------------------------------------------------------------------------------
+
+  📄 01_dart.txt                              (14 dosya, 1268 satır, 52.0 KB)
+       [Dart  ]  frontend\hocaefendi_ai_app\lib\main.dart
+       [Dart  ]  frontend\hocaefendi_ai_app\lib\models\chat_message.dart
+       [Dart  ]  frontend\hocaefendi_ai_app\lib\providers\chat_provider.dart
+       [Dart  ]  frontend\hocaefendi_ai_app\lib\screens\auth_screen.dart
+       [Dart  ]  frontend\hocaefendi_ai_app\lib\screens\chat_screen.dart
+       [Dart  ]  frontend\hocaefendi_ai_app\lib\screens\login_screen.dart
+       [Dart  ]  frontend\hocaefendi_ai_app\lib\screens\splash_screen.dart
+       [Dart  ]  frontend\hocaefendi_ai_app\lib\services\api_service.dart
+       [Dart  ]  frontend\hocaefendi_ai_app\lib\services\auth_service.dart
+       [Dart  ]  frontend\hocaefendi_ai_app\lib\widgets\chat_bubble.dart
+       [Dart  ]  frontend\hocaefendi_ai_app\lib\widgets\emotion_image_widget.dart
+       [Dart  ]  frontend\hocaefendi_ai_app\lib\widgets\voice_button.dart
+       [Dart  ]  frontend\hocaefendi_ai_app\lib\widgets\voice_input_button.dart
+       [Dart  ]  frontend\hocaefendi_ai_app\test\widget_test.dart
+
+  📄 02_python_backend.txt                    (10 dosya, 366 satır, 19.6 KB)
+       [Python]  backend\TTS_test.py
+       [Python]  backend\check_audio.py
+       [Python]  backend\ingest_all.py
+       [Python]  backend\main.py
+       [Python]  backend\patch_gpt_inference.py
+       [Python]  backend\patch_tts.py
+       [Python]  backend\test_gpu.py
+       [Python]  backend\test_setup.py
+       [Python]  backend\test_xtts_direct.py
+       [Python]  backend\verify_db.py
+
+  📄 03_python_backend_prompts.txt            (1 dosya, 145 satır, 18.4 KB)
+       [Python]  backend\prompts\hocaefendi_prompt.py
+
+  📄 04_python_backend_routers.txt            (5 dosya, 323 satır, 15.7 KB)
+       [Python]  backend\routers\auth.py
+       [Python]  backend\routers\chat.py
+       [Python]  backend\routers\emotion.py
+       [Python]  backend\routers\rag.py
+       [Python]  backend\routers\voice.py
+
+  📄 05_python_backend_services.txt           (4 dosya, 470 satır, 20.0 KB)
+       [Python]  backend\services\emotion_service.py
+       [Python]  backend\services\llm_service.py
+       [Python]  backend\services\rag_service.py
+       [Python]  backend\services\voice_service.py
+
+  📄 06_python_backend_tests.txt              (2 dosya, 63 satır, 5.5 KB)
+       [Python]  backend\tests\__init__.py
+       [Python]  backend\tests\test_chat_router.py
+
+  📄 07_python_frontend_hocaefendi_ai_app_ios_Flutter_ephemeral.txt (1 dosya, 32 satır, 3.1 KB)
+       [Python]  frontend\hocaefendi_ai_app\ios\Flutter\ephemeral\flutter_lldb_helper.py
+
+  📄 08_python_kök.txt                        (1 dosya, 365 satır, 15.5 KB)
+       [Python]  allCode.py
+
+================================================================================

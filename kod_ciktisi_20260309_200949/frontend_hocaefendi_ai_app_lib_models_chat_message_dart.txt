@@ -1,0 +1,42 @@
+================================================================================
+DOSYA BİLGİSİ
+--------------------------------------------------------------------------------
+  Ad            : chat_message.dart
+  Dil           : Dart
+  Yol           : frontend\hocaefendi_ai_app\lib\models\chat_message.dart
+  Son Değişim   : 2026-03-09 17:26:40
+  Satır         : 27
+  Sıra          : 2 / 38
+================================================================================
+
+class ChatMessage {
+  final String text;
+  final bool isUserMessage;
+  final DateTime timestamp;
+  final List<String> sources;
+
+  ChatMessage({
+    required this.text,
+    required this.isUserMessage,
+    required this.timestamp,
+    this.sources = const []
+  });
+
+  Map<String, dynamic> toJson() => {
+    'text': text,
+    'isUserMessage': isUserMessage,
+    'timestamp': timestamp.toIso8601String(),
+    'sources': sources,
+  };
+
+  factory ChatMessage.fromJson(Map<String, dynamic> json) => ChatMessage(
+    text: json['text'] as String,
+    isUserMessage: json['isUserMessage'] as bool,
+    timestamp: DateTime.parse(json['timestamp'] as String),
+    sources: List<String>.from(json['sources'] ?? [])
+  );
+}
+
+================================================================================
+# DOSYA SONU: frontend\hocaefendi_ai_app\lib\models\chat_message.dart
+================================================================================

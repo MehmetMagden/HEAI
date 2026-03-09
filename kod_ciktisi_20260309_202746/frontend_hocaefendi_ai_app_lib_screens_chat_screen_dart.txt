@@ -1,3 +1,14 @@
+================================================================================
+DOSYA BİLGİSİ
+--------------------------------------------------------------------------------
+  Ad            : chat_screen.dart
+  Dil           : Dart
+  Yol           : frontend\hocaefendi_ai_app\lib\screens\chat_screen.dart
+  Son Değişim   : 2026-03-09 14:58:29
+  Satır         : 270
+  Sıra          : 5 / 38
+================================================================================
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -268,3 +279,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     );
   }
 }
+
+================================================================================
+# DOSYA SONU: frontend\hocaefendi_ai_app\lib\screens\chat_screen.dart
+================================================================================

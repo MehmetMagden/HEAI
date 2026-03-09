@@ -1,3 +1,14 @@
+================================================================================
+DOSYA BİLGİSİ
+--------------------------------------------------------------------------------
+  Ad            : chat_bubble.dart
+  Dil           : Dart
+  Yol           : frontend\hocaefendi_ai_app\lib\widgets\chat_bubble.dart
+  Son Değişim   : 2026-03-09 18:05:26
+  Satır         : 112
+  Sıra          : 10 / 38
+================================================================================
+
 import 'package:flutter/material.dart';
 import '../models/chat_message.dart';
 
@@ -7,24 +18,20 @@ class ChatBubble extends StatelessWidget {
   const ChatBubble({super.key, required this.message});
 
 
-void _showSources(BuildContext context) {
-  showModalBottomSheet(
-    context: context,
-    backgroundColor: const Color(0xFF2C2C2C),
-    isScrollControlled: true,          // ← overflow düzeltmesi
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-    ),
-    builder: (_) => DraggableScrollableSheet(
-      initialChildSize: 0.5,
-      maxChildSize: 0.9,
-      minChildSize: 0.3,
-      expand: false,
-      builder: (_, scrollController) => Column(
-        children: [
-          const Padding(
-            padding: EdgeInsets.all(16),
-            child: Text(
+  void _showSources(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF2C2C2C),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (_) => Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
               '📚 Kullanılan Kaynaklar',
               style: TextStyle(
                 color: Colors.white,
@@ -32,57 +39,33 @@ void _showSources(BuildContext context) {
                 fontWeight: FontWeight.bold,
               ),
             ),
-          ),
-          Expanded(
-            child: ListView.builder(
-              controller: scrollController,
-              itemCount: message.sources.length,
-              itemBuilder: (ctx, i) {
-                final source = message.sources[i];
-                return ListTile(
-                  leading: const Icon(Icons.book, color: Color(0xFF81C784)),
-                  title: Text(
-                    source['name'] ?? '',
-                    style: const TextStyle(color: Colors.white, fontSize: 13),
+            const SizedBox(height: 12),
+            ...message.sources.map((source) => Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Row(
+                children: [
+                  const Icon(Icons.book, size: 16, color: Color(0xFF81C784)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      source,
+                      style: const TextStyle(color: Colors.white70, fontSize: 13),
+                    ),
                   ),
-                  trailing: const Icon(Icons.chevron_right, color: Colors.white38),
-                  onTap: () => _showSourceContent(ctx, source),
-                );
-              },
-            ),
-          ),
-        ],
-      ),
-    ),
-  );
-}
-
-void _showSourceContent(BuildContext context, Map<String, String> source) {
-  showDialog(
-    context: context,
-    builder: (_) => AlertDialog(
-      backgroundColor: const Color(0xFF2C2C2C),
-      title: Text(
-        source['name'] ?? 'Kaynak',
-        style: const TextStyle(color: Colors.white, fontSize: 14),
-      ),
-      content: SingleChildScrollView(
-        child: Text(
-          source['content'] ?? 'İçerik bulunamadı.',
-          style: const TextStyle(color: Colors.white70, fontSize: 13, height: 1.5),
+                ],
+              ),
+            )),
+            const SizedBox(height: 12),
+          ],
         ),
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Kapat', style: TextStyle(color: Color(0xFF81C784))),
-        ),
-      ],
-    ),
-  );
-}
+    );
+  }
 
-@override
+
+
+
+  @override
   Widget build(BuildContext context) {
     final isUser = message.isUserMessage;
 
@@ -139,6 +122,6 @@ void _showSourceContent(BuildContext context, Map<String, String> source) {
   }
 }
 
-
-
-
+================================================================================
+# DOSYA SONU: frontend\hocaefendi_ai_app\lib\widgets\chat_bubble.dart
+================================================================================
