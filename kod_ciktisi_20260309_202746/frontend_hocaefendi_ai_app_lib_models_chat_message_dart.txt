@@ -1,3 +1,14 @@
+================================================================================
+DOSYA BİLGİSİ
+--------------------------------------------------------------------------------
+  Ad            : chat_message.dart
+  Dil           : Dart
+  Yol           : frontend\hocaefendi_ai_app\lib\models\chat_message.dart
+  Son Değişim   : 2026-03-09 20:16:12
+  Satır         : 29
+  Sıra          : 2 / 38
+================================================================================
+
 class ChatMessage {
   final String text;
   final bool isUserMessage;
@@ -27,3 +38,7 @@ class ChatMessage {
         .toList(),
   );
 }
+
+================================================================================
+# DOSYA SONU: frontend\hocaefendi_ai_app\lib\models\chat_message.dart
+================================================================================

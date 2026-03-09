@@ -1,0 +1,293 @@
+================================================================================
+DOSYA BİLGİSİ
+--------------------------------------------------------------------------------
+  Ad            : allCode.py
+  Dil           : Python
+  Yol           : allCode.py
+  Son Değişim   : 2026-03-09 20:09:30
+  Satır         : 278
+  Sıra          : 15 / 38
+================================================================================
+
+#!/usr/bin/env python3
+"""
+collect_code.py
+---------------
+Verilen bir klasördeki tüm .py ve .dart dosyalarını bulur,
+her birini ayrı bir .txt dosyası olarak çıktı klasörüne kaydeder.
+Yapay zekaya tek tek yüklemek için idealdir.
+
+Kullanım:
+    python collect_code.py <kaynak_klasor> [cikti_klasoru] [seçenekler]
+
+Örnekler:
+    python collect_code.py C:/HEAI
+    python collect_code.py C:/HEAI C:/HEAI/cikti
+    python collect_code.py C:/HEAI --exclude logs --exclude data
+"""
+
+import os
+import sys
+import argparse
+from datetime import datetime
+
+# ─── Ayarlar ────────────────────────────────────────────────────────────────
+HEDEF_UZANTILAR = {".py", ".dart"}
+SEPARATOR_KALIN = "=" * 80
+SEPARATOR_INCE  = "-" * 80
+
+ATLANAN_KLASORLER = {
+    "venv", "env", ".venv", ".env", "virtualenv", ".virtualenv",
+    "venv32", "venv64", ".tox", "pyenv",
+    "site-packages", "dist-packages", "lib2to3",
+    "__pycache__", "build", "dist", ".eggs",
+    ".dart_tool", ".pub-cache", ".pub",
+    "node_modules",
+    ".idea", ".vscode", ".gradle", ".git", ".svn",
+    "migrations",
+}
+
+
+def venv_mi(klasor_yolu: str) -> bool:
+    if os.path.isfile(os.path.join(klasor_yolu, "pyvenv.cfg")):
+        return True
+    if (os.path.isdir(os.path.join(klasor_yolu, "Scripts")) and
+            os.path.isdir(os.path.join(klasor_yolu, "Lib", "site-packages"))):
+        return True
+    if os.path.isdir(os.path.join(klasor_yolu, "bin")):
+        if (os.path.exists(os.path.join(klasor_yolu, "bin", "python")) or
+                os.path.exists(os.path.join(klasor_yolu, "bin", "python3"))):
+            return True
+    return False
+
+
+def gitignore_oku(klasor: str) -> set:
+    atlananlar = set()
+    gitignore_yolu = os.path.join(klasor, ".gitignore")
+    if not os.path.isfile(gitignore_yolu):
+        return atlananlar
+    try:
+        with open(gitignore_yolu, "r", encoding="utf-8") as f:
+            for satir in f:
+                satir = satir.strip()
+                if not satir or satir.startswith("#"):
+                    continue
+                temiz = satir.rstrip("/").lstrip("/").strip()
+                if temiz and "/" not in temiz and "\\" not in temiz:
+                    atlananlar.add(temiz.lower())
+    except Exception:
+        pass
+    return atlananlar
+
+
+def atlanacak_mi(klasor_adi: str, tam_yol: str, ekstra: set) -> bool:
+    ad = klasor_adi.lower()
+    if klasor_adi.startswith("."):
+        return True
+    if ad in ATLANAN_KLASORLER:
+        return True
+    if ad in ekstra:
+        return True
+    if venv_mi(tam_yol):
+        return True
+    return False
+
+
+def dosyalari_topla(kaynak_klasor: str, ekstra_atlanacaklar: set) -> list[dict]:
+    bulunan = []
+    gitignore_atlananlar = gitignore_oku(kaynak_klasor)
+    ekstra = ekstra_atlanacaklar | gitignore_atlananlar
+
+    for kok, klasorler, dosyalar in os.walk(kaynak_klasor):
+        klasorler[:] = [
+            k for k in sorted(klasorler)
+            if not atlanacak_mi(k, os.path.join(kok, k), ekstra)
+        ]
+        for dosya in sorted(dosyalar):
+            _, uzanti = os.path.splitext(dosya)
+            if uzanti.lower() in HEDEF_UZANTILAR:
+                tam_yol = os.path.join(kok, dosya)
+                goreceli_yol = os.path.relpath(tam_yol, kaynak_klasor)
+                mtime = os.path.getmtime(tam_yol)
+                son_degisim = datetime.fromtimestamp(mtime).strftime("%Y-%m-%d %H:%M:%S")
+                bulunan.append({
+                    "tam_yol":      tam_yol,
+                    "goreceli_yol": goreceli_yol,
+                    "dosya_adi":    dosya,
+                    "uzanti":       uzanti.lower(),
+                    "dil":          "Python" if uzanti.lower() == ".py" else "Dart",
+                    "son_degisim":  son_degisim,
+                })
+
+    bulunan.sort(key=lambda x: (x["dil"], x["goreceli_yol"]))
+    return bulunan
+
+
+def dosya_oku(tam_yol: str) -> tuple[str, str | None]:
+    for encoding in ("utf-8", "utf-8-sig", "latin-1", "cp1252"):
+        try:
+            with open(tam_yol, "r", encoding=encoding) as f:
+                return f.read(), None
+        except UnicodeDecodeError:
+            continue
+        except Exception as e:
+            return "", str(e)
+    return "", "Dosya okunamadı: desteklenen encoding bulunamadı."
+
+
+def guvenli_dosya_adi(goreceli_yol: str) -> str:
+    """
+    Göreli yolu güvenli bir dosya adına dönüştürür.
+    Örnek: backend\\routers\\chat.py  →  backend_routers_chat_py.txt
+    """
+    ad = goreceli_yol.replace("\\", "_").replace("/", "_").replace(".", "_")
+    return ad + ".txt"
+
+
+def tek_dosya_yaz(dosya_bilgi: dict, cikti_klasoru: str, toplam: int, sira: int) -> dict:
+    """Tek bir kaynak dosyayı ayrı bir .txt olarak yazar."""
+    icerik, hata = dosya_oku(dosya_bilgi["tam_yol"])
+    satir_sayisi = (icerik.count("\n") +
+                    (1 if icerik and not icerik.endswith("\n") else 0))
+
+    cikti_adi = guvenli_dosya_adi(dosya_bilgi["goreceli_yol"])
+    cikti_yolu = os.path.join(cikti_klasoru, cikti_adi)
+
+    with open(cikti_yolu, "w", encoding="utf-8") as f:
+        f.write(SEPARATOR_KALIN + "\n")
+        f.write(f"DOSYA BİLGİSİ\n")
+        f.write(SEPARATOR_INCE + "\n")
+        f.write(f"  Ad            : {dosya_bilgi['dosya_adi']}\n")
+        f.write(f"  Dil           : {dosya_bilgi['dil']}\n")
+        f.write(f"  Yol           : {dosya_bilgi['goreceli_yol']}\n")
+        f.write(f"  Son Değişim   : {dosya_bilgi['son_degisim']}\n")
+        f.write(f"  Satır         : {satir_sayisi}\n")
+        f.write(f"  Sıra          : {sira} / {toplam}\n")
+        if hata:
+            f.write(f"  HATA          : {hata}\n")
+        f.write(SEPARATOR_KALIN + "\n\n")
+
+        if hata:
+            f.write(f"[HATA: Dosya okunamadı — {hata}]\n")
+        else:
+            f.write(icerik)
+            if icerik and not icerik.endswith("\n"):
+                f.write("\n")
+
+        f.write("\n" + SEPARATOR_KALIN + "\n")
+        f.write(f"# DOSYA SONU: {dosya_bilgi['goreceli_yol']}\n")
+        f.write(SEPARATOR_KALIN + "\n")
+
+    return {
+        "cikti_adi":   cikti_adi,
+        "satir":       satir_sayisi,
+        "hata":        hata is not None,
+    }
+
+
+def indeks_yaz(dosyalar: list[dict], sonuclar: list[dict],
+               cikti_klasoru: str, kaynak_klasor: str):
+    """Tüm dosyaları listeleyen bir INDEX.txt oluşturur."""
+    indeks_yolu = os.path.join(cikti_klasoru, "INDEX.txt")
+    toplam_satir = sum(s["satir"] for s in sonuclar)
+
+    with open(indeks_yolu, "w", encoding="utf-8") as f:
+        f.write(SEPARATOR_KALIN + "\n")
+        f.write("KOD TOPLAMA İNDEKSİ\n")
+        f.write(SEPARATOR_KALIN + "\n")
+        f.write(f"Oluşturulma Tarihi : {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+        f.write(f"Kaynak Klasör      : {os.path.abspath(kaynak_klasor)}\n")
+        f.write(f"Çıktı Klasörü      : {os.path.abspath(cikti_klasoru)}\n")
+        f.write(f"Toplam Dosya       : {len(dosyalar)} "
+                f"(Python: {sum(1 for d in dosyalar if d['dil']=='Python')}, "
+                f"Dart: {sum(1 for d in dosyalar if d['dil']=='Dart')})\n")
+        f.write(f"Toplam Satır       : {toplam_satir}\n")
+        f.write(SEPARATOR_KALIN + "\n\n")
+
+        f.write("DOSYA LİSTESİ\n")
+        f.write(SEPARATOR_INCE + "\n")
+        for i, (d, s) in enumerate(zip(dosyalar, sonuclar), 1):
+            durum = "⚠ HATA" if s["hata"] else "✓"
+            f.write(
+                f"  {i:>3}. [{d['dil']:<6}] {durum}  "
+                f"{d['goreceli_yol']:<50} "
+                f"→ {s['cikti_adi']}\n"
+            )
+        f.write("\n" + SEPARATOR_KALIN + "\n")
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Klasördeki .py ve .dart dosyalarını ayrı .txt dosyaları olarak kaydeder.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=__doc__,
+    )
+    parser.add_argument("kaynak", help="Taranacak kaynak klasör yolu")
+    parser.add_argument(
+        "cikti", nargs="?", default=None,
+        help="Çıktı klasörü (varsayılan: kaynak_klasor/kod_ciktisi_TARIH)",
+    )
+    parser.add_argument(
+        "--exclude", "-e", metavar="KLASOR", action="append", default=[],
+        help="Ekstra atlanacak klasör adı (birden fazla kullanılabilir)",
+    )
+    args = parser.parse_args()
+
+    if not os.path.isdir(args.kaynak):
+        print(f"[HATA] Klasör bulunamadı: {args.kaynak}")
+        sys.exit(1)
+
+    # Çıktı klasörünü belirle ve oluştur
+    if args.cikti:
+        cikti_klasoru = args.cikti
+    else:
+        zaman_damgasi = datetime.now().strftime("%Y%m%d_%H%M%S")
+        cikti_klasoru = os.path.join(args.kaynak, f"kod_ciktisi_{zaman_damgasi}")
+
+    os.makedirs(cikti_klasoru, exist_ok=True)
+
+    ekstra = {k.lower() for k in args.exclude}
+
+    print(f"🔍 Taranıyor  : {os.path.abspath(args.kaynak)}")
+    print(f"📁 Çıktı      : {os.path.abspath(cikti_klasoru)}")
+    print(f"🚫 Atlananlar : venv, site-packages, __pycache__, build, node_modules ...")
+    if ekstra:
+        print(f"   + Ekstra   : {', '.join(sorted(ekstra))}")
+
+    dosyalar = dosyalari_topla(args.kaynak, ekstra)
+
+    if not dosyalar:
+        print("⚠️  Hiç .py veya .dart dosyası bulunamadı.")
+        sys.exit(0)
+
+    print(f"📄 {len(dosyalar)} dosya bulundu "
+          f"(Python: {sum(1 for d in dosyalar if d['dil']=='Python')}, "
+          f"Dart: {sum(1 for d in dosyalar if d['dil']=='Dart')})\n")
+
+    sonuclar = []
+    for i, d in enumerate(dosyalar, 1):
+        s = tek_dosya_yaz(d, cikti_klasoru, len(dosyalar), i)
+        sonuclar.append(s)
+        durum = "⚠" if s["hata"] else "✓"
+        print(f"  {durum} [{i:>2}/{len(dosyalar)}] {d['goreceli_yol']}")
+
+    # INDEX.txt oluştur
+    indeks_yaz(dosyalar, sonuclar, cikti_klasoru, args.kaynak)
+
+    hatali = sum(1 for s in sonuclar if s["hata"])
+    toplam_satir = sum(s["satir"] for s in sonuclar)
+
+    print(f"\n✅ Tamamlandı!")
+    print(f"   Klasör       : {cikti_klasoru}")
+    print(f"   Dosya sayısı : {len(dosyalar)} ayrı .txt  (+1 INDEX.txt)")
+    print(f"   Toplam Satır : {toplam_satir}")
+    if hatali:
+        print(f"   ⚠️  {hatali} dosya okunamadı.")
+
+
+if __name__ == "__main__":
+    main()
+
+================================================================================
+# DOSYA SONU: allCode.py
+================================================================================

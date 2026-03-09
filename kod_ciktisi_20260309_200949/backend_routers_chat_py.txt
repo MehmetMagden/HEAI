@@ -1,3 +1,14 @@
+================================================================================
+DOSYA BİLGİSİ
+--------------------------------------------------------------------------------
+  Ad            : chat.py
+  Dil           : Python
+  Yol           : backend\routers\chat.py
+  Son Değişim   : 2026-03-09 19:52:31
+  Satır         : 104
+  Sıra          : 24 / 38
+================================================================================
+
 # backend/routers/chat.py
 from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
@@ -90,21 +101,10 @@ async def stream_message(request: ChatRequest):
     messages = build_messages(request.message, request.history, context)
 
     async def generate():
+        # Önce sources'ı gönder
         import json
-        # Kaynak adı + içeriği birlikte gönder
-        source_details = []
-        if context:
-            parts = context.split("\n\n---\n\n")
-            for part in parts:
-                lines = part.strip().split("\n", 1)
-                if lines and lines[0].startswith("[") and lines[0].endswith("]"):
-                    name = lines[0][1:-1]
-                    content = lines[1].strip() if len(lines) > 1 else ""
-                    source_details.append({
-                        "name": name,
-                        "content": content[:500]
-                    })
-        yield f"[SOURCES]{json.dumps(source_details, ensure_ascii=False)}[/SOURCES]"
+        yield f"[SOURCES]{json.dumps(sources)}[/SOURCES]"
+        # Sonra normal stream
         async for token in llm_service.chat_stream(messages):
             yield token
 
@@ -113,3 +113,7 @@ async def stream_message(request: ChatRequest):
 @router.get("/health")
 async def health():
     return {"status": "ok", "model": llm_service.OLLAMA_MODEL}
+
+================================================================================
+# DOSYA SONU: backend\routers\chat.py
+================================================================================

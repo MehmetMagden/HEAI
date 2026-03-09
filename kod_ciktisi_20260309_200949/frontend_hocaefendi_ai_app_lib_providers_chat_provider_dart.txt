@@ -1,3 +1,14 @@
+================================================================================
+DOSYA BİLGİSİ
+--------------------------------------------------------------------------------
+  Ad            : chat_provider.dart
+  Dil           : Dart
+  Yol           : frontend\hocaefendi_ai_app\lib\providers\chat_provider.dart
+  Son Değişim   : 2026-03-09 17:29:44
+  Satır         : 258
+  Sıra          : 3 / 38
+================================================================================
+
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -162,62 +173,25 @@ class ChatNotifier extends StateNotifier<ChatState> {
           .toList();
 
       String fullText = '';
-      List<Map<String, String>> sources = [];
-
-      bool collectingSources = false;
-      String sourcesBuffer = '';
+      List<String> sources = [];
 
       await for (final chunk in ApiService.streamMessage(
         message: text,
         history: history,
         topK: state.topK,
       )) {
-        String processedChunk = chunk;
-
-        if (collectingSources) {
-          // Sources JSON'unu biriktirmeye devam et
-          sourcesBuffer += chunk;
-          if (sourcesBuffer.contains('[/SOURCES]')) {
-            final sourcesEnd = sourcesBuffer.indexOf('[/SOURCES]');
-            final sourcesJson = sourcesBuffer.substring(0, sourcesEnd);
-            try {
-              final decoded = jsonDecode(sourcesJson) as List<dynamic>;
-              sources = decoded
-                  .map((e) => Map<String, String>.from(e as Map))
-                  .toList();
-            } catch (_) {}
-            processedChunk = sourcesBuffer.substring(sourcesEnd + '[/SOURCES]'.length);
-            collectingSources = false;
-            sourcesBuffer = '';
-            if (processedChunk.isEmpty) continue;
-          } else {
-            continue; // Henüz tamamlanmadı, biriktirmeye devam
-          }
-        } else if (chunk.contains('[SOURCES]')) {
-          final sourcesStart = chunk.indexOf('[SOURCES]') + '[SOURCES]'.length;
-          sourcesBuffer = chunk.substring(sourcesStart);
-
-          if (sourcesBuffer.contains('[/SOURCES]')) {
-            // Şanslı durum: tek chunk'ta tamamlandı
-            final sourcesEnd = sourcesBuffer.indexOf('[/SOURCES]');
-            final sourcesJson = sourcesBuffer.substring(0, sourcesEnd);
-            try {
-              final decoded = jsonDecode(sourcesJson) as List<dynamic>;
-              sources = decoded
-                  .map((e) => Map<String, String>.from(e as Map))
-                  .toList();
-            } catch (_) {}
-            processedChunk = sourcesBuffer.substring(sourcesEnd + '[/SOURCES]'.length);
-            sourcesBuffer = '';
-            if (processedChunk.isEmpty) continue;
-          } else {
-            // Büyük JSON, birden fazla chunk'a bölündü
-            collectingSources = true;
-            continue;
-          }
+        // Sources chunk'ını yakala
+        if (chunk.startsWith('[SOURCES]') && chunk.contains('[/SOURCES]')) {
+          final sourcesJson = chunk
+              .replaceFirst('[SOURCES]', '')
+              .replaceFirst('[/SOURCES]', '');
+          try {
+            sources = List<String>.from(jsonDecode(sourcesJson));
+          } catch (_) {}
+          continue; // Bu chunk'ı ekrana yansıtma
         }
 
-        fullText += processedChunk;
+        fullText += chunk;
         final updatedMessages = [...state.messages];
         updatedMessages[updatedMessages.length - 1] = ChatMessage(
           text: fullText,
@@ -248,19 +222,15 @@ class ChatNotifier extends StateNotifier<ChatState> {
       await _saveHistory();
 
       // TTS
-      // TTS - max 300 karakter
       try {
-        final ttsText = fullText.length > 300 
-            ? fullText.substring(0, 300) 
-            : fullText;
-        final audioBytes = await ApiService.synthesizeSpeech(ttsText);
+        final audioBytes = await ApiService.synthesizeSpeech(fullText);
         final dir = await getTemporaryDirectory();
         final file = File('${dir.path}/response.wav');
         await file.writeAsBytes(audioBytes);
         final player = AudioPlayer();
         await player.play(DeviceFileSource(file.path));
       } catch (_) {
-        // Ses hatası sessizce geç
+        // Ses çalma hatası sessizce geç
       }
 
     } catch (e) {
@@ -297,3 +267,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
 final chatProvider = StateNotifierProvider<ChatNotifier, ChatState>(
   (ref) => ChatNotifier(),
 );
+
+================================================================================
+# DOSYA SONU: frontend\hocaefendi_ai_app\lib\providers\chat_provider.dart
+================================================================================
