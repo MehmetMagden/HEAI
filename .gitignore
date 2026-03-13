@@ -96,4 +96,6 @@ temp/
 *.mp3
 *.mp4
 *.avi
-*.mkv
+*.mkv"backend/data/bamteli/" 
+"backend/data/books/" 
+"backend/data/pdfs/" 
