@@ -11,6 +11,10 @@ from services.llm_service import chat
 from services.rag_service import retrieve_context
 from prompts.hocaefendi_prompt import SYSTEM_PROMPT
 
+from fastapi.responses import StreamingResponse as FastAPIStreaming
+import asyncio
+import json
+
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/voice", tags=["voice"])
 
@@ -127,3 +131,121 @@ async def voice_chat(
     except Exception as e:
         logger.error(f"Ses sohbet hatası: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+
+
+class StreamTTSRequest(BaseModel):
+    text: str
+    session_id: str = ""
+
+@router.post("/synthesize-stream")
+async def synthesize_stream(request: StreamTTSRequest):
+    """
+    Metni cümlelere böl, her cümleyi ayrı sentezle.
+    Her cümle hazır olunca SSE ile URL gönder.
+    """
+    session_id = request.session_id or str(uuid.uuid4())[:8]
+    sentences = voice_service.split_into_sentences(request.text)
+
+    async def generate():
+        for i, sentence in enumerate(sentences):
+            if not sentence.strip():
+                continue
+            try:
+                filename = f"sentence_{session_id}_{i}.wav"
+                output_path = voice_service.synthesize_sentence(sentence, filename)
+
+                if output_path:
+                    url = f"/voice/audio/{filename}"
+                    data = json.dumps({
+                        "index": i,
+                        "total": len(sentences),
+                        "url": url,
+                        "text": sentence
+                    }, ensure_ascii=False)
+                    yield f"data: {data}\n\n"
+                    # Flutter'ın indirip çalmaya başlaması için küçük bekleme
+                    await asyncio.sleep(0.1)
+
+            except Exception as e:
+                logger.error(f"Cümle {i} sentez hatası: {e}")
+                continue
+
+        # Tüm cümleler bitti sinyali
+        yield f"data: {json.dumps({'done': True})}\n\n"
+
+        # Eski dosyaları temizle
+        voice_service.cleanup_old_audio(max_files=100)
+
+    return FastAPIStreaming(
+        generate(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no"
+        }
+    )
+
+
+@router.get("/audio/{filename}")
+async def get_audio(filename: str):
+    """Ses dosyasını döndür."""
+    file_path = OUTPUT_DIR / filename
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="Ses dosyası bulunamadı")
+    return FileResponse(
+        path=str(file_path),
+        media_type="audio/wav",
+        filename=filename
+    )        
+
+
+
+# ── Streaming TTS ─────────────────────────────────────
+from pydantic import BaseModel as _BaseModel
+
+
+class StreamTTSRequest(_BaseModel):
+    text: str
+    session_id: str = "default"
+
+
+@router.post("/synthesize-stream")
+async def synthesize_stream(request: StreamTTSRequest):
+    """Metni cümle cümle sentezler, SSE ile URL'leri gönderir."""
+    import uuid, json
+    from fastapi.responses import StreamingResponse as _SR
+
+    sentences = voice_service.split_into_sentences(request.text)
+
+    async def generate():
+        for i, sentence in enumerate(sentences):
+            if not sentence.strip():
+                continue
+            try:
+                filename = f"sentence_{request.session_id}_{i}.wav"
+                path = voice_service.synthesize_sentence(sentence, filename)
+                if path:
+                    audio_url = f"/voice/audio/{filename}"
+                    data = json.dumps({"url": audio_url, "index": i}, ensure_ascii=False)
+                    yield f"data: {data}\n\n"
+            except Exception as e:
+                logger.error(f"Cümle {i} hatası: {e}")
+                continue
+
+        # Bitti sinyali
+        yield f"data: {json.dumps({'done': True})}\n\n"
+        voice_service.cleanup_old_audio()
+
+    return _SR(generate(), media_type="text/event-stream")
+
+
+@router.get("/audio/{filename}")
+async def get_audio(filename: str):
+    """Üretilen ses dosyasını döner."""
+    audio_path = OUTPUT_DIR / filename
+    if not audio_path.exists():
+        raise HTTPException(status_code=404, detail="Ses dosyası bulunamadı")
+    return FileResponse(str(audio_path), media_type="audio/wav")
+

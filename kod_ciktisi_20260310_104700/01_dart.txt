@@ -1,0 +1,1570 @@
+================================================================================
+GRUP: DART
+--------------------------------------------------------------------------------
+Oluşturulma Tarihi : 2026-03-10 10:47:00
+Bu Gruptaki Dosya  : 14
+Grup               : 1 / 9
+================================================================================
+
+İÇİNDEKİLER
+--------------------------------------------------------------------------------
+    1. [Dart  ]  frontend\hocaefendi_ai_app\lib\main.dart            (son değişim: 2026-03-08 13:39:11)
+    2. [Dart  ]  frontend\hocaefendi_ai_app\lib\models\chat_message.dart  (son değişim: 2026-03-09 20:16:12)
+    3. [Dart  ]  frontend\hocaefendi_ai_app\lib\providers\chat_provider.dart  (son değişim: 2026-03-09 21:07:43)
+    4. [Dart  ]  frontend\hocaefendi_ai_app\lib\screens\auth_screen.dart  (son değişim: 2026-03-08 13:46:25)
+    5. [Dart  ]  frontend\hocaefendi_ai_app\lib\screens\chat_screen.dart  (son değişim: 2026-03-09 22:49:03)
+    6. [Dart  ]  frontend\hocaefendi_ai_app\lib\screens\login_screen.dart  (son değişim: 2026-03-05 11:30:12)
+    7. [Dart  ]  frontend\hocaefendi_ai_app\lib\screens\splash_screen.dart  (son değişim: 2026-03-05 11:30:32)
+    8. [Dart  ]  frontend\hocaefendi_ai_app\lib\services\api_service.dart  (son değişim: 2026-03-09 16:45:23)
+    9. [Dart  ]  frontend\hocaefendi_ai_app\lib\services\auth_service.dart  (son değişim: 2026-03-07 14:15:14)
+   10. [Dart  ]  frontend\hocaefendi_ai_app\lib\widgets\chat_bubble.dart  (son değişim: 2026-03-09 20:26:38)
+   11. [Dart  ]  frontend\hocaefendi_ai_app\lib\widgets\emotion_image_widget.dart  (son değişim: 2026-03-09 23:24:23)
+   12. [Dart  ]  frontend\hocaefendi_ai_app\lib\widgets\voice_button.dart  (son değişim: 2026-03-07 13:26:44)
+   13. [Dart  ]  frontend\hocaefendi_ai_app\lib\widgets\voice_input_button.dart  (son değişim: 2026-03-05 11:31:23)
+   14. [Dart  ]  frontend\hocaefendi_ai_app\test\widget_test.dart    (son değişim: 2026-03-05 11:29:15)
+
+================================================================================
+
+================================================================================
+DOSYA #1
+--------------------------------------------------------------------------------
+  Ad            : main.dart
+  Dil           : Dart
+  Yol           : frontend\hocaefendi_ai_app\lib\main.dart
+  Son Değişim   : 2026-03-08 13:39:11
+  Satır         : 61
+--------------------------------------------------------------------------------
+
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'screens/auth_screen.dart';
+import 'screens/chat_screen.dart';
+import 'services/auth_service.dart';
+
+
+
+void main() {
+  runApp(const ProviderScope(child: MyApp()));
+}
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'HocaefendiAI',
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData.dark(),
+      home: const SplashScreen(),
+    );
+  }
+}
+
+class SplashScreen extends StatefulWidget {
+  const SplashScreen({super.key});
+
+  @override
+  State<SplashScreen> createState() => _SplashScreenState();
+}
+
+class _SplashScreenState extends State<SplashScreen> {
+  @override
+  void initState() {
+    super.initState();
+    _checkAuth();
+  }
+
+  Future<void> _checkAuth() async {
+    final isSignedIn = await AuthService.isSignedIn();
+    if (mounted) {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => isSignedIn ? const ChatScreen() : const AuthScreen(),
+        ),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return const Scaffold(
+      backgroundColor: Color(0xFF1A1A1A),
+      body: Center(
+        child: CircularProgressIndicator(color: Color(0xFF1B5E20)),
+      ),
+    );
+  }
+}
+
+================================================================================
+# DOSYA #1 SONU: frontend\hocaefendi_ai_app\lib\main.dart
+================================================================================
+
+================================================================================
+DOSYA #2
+--------------------------------------------------------------------------------
+  Ad            : chat_message.dart
+  Dil           : Dart
+  Yol           : frontend\hocaefendi_ai_app\lib\models\chat_message.dart
+  Son Değişim   : 2026-03-09 20:16:12
+  Satır         : 29
+--------------------------------------------------------------------------------
+
+class ChatMessage {
+  final String text;
+  final bool isUserMessage;
+  final DateTime timestamp;
+  final List<Map<String, String>> sources;  // ← değişti
+
+  ChatMessage({
+    required this.text,
+    required this.isUserMessage,
+    required this.timestamp,
+    this.sources = const [],
+  });
+
+  Map<String, dynamic> toJson() => {
+    'text': text,
+    'isUserMessage': isUserMessage,
+    'timestamp': timestamp.toIso8601String(),
+    'sources': sources,
+  };
+
+  factory ChatMessage.fromJson(Map<String, dynamic> json) => ChatMessage(
+    text: json['text'] as String,
+    isUserMessage: json['isUserMessage'] as bool,
+    timestamp: DateTime.parse(json['timestamp'] as String),
+    sources: (json['sources'] as List<dynamic>? ?? [])
+        .map((e) => Map<String, String>.from(e as Map))
+        .toList(),
+  );
+}
+
+================================================================================
+# DOSYA #2 SONU: frontend\hocaefendi_ai_app\lib\models\chat_message.dart
+================================================================================
+
+================================================================================
+DOSYA #3
+--------------------------------------------------------------------------------
+  Ad            : chat_provider.dart
+  Dil           : Dart
+  Yol           : frontend\hocaefendi_ai_app\lib\providers\chat_provider.dart
+  Son Değişim   : 2026-03-09 21:07:43
+  Satır         : 299
+--------------------------------------------------------------------------------
+
+import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+import 'package:audioplayers/audioplayers.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../models/chat_message.dart';
+import '../services/api_service.dart';
+
+class ChatState {
+  final List<ChatMessage> messages;
+  final bool isLoading;
+  final String? error;
+  final String currentEmotion;
+  final int topK; 
+
+  ChatState({
+    required this.messages,
+    this.isLoading = false,
+    this.error,
+    this.currentEmotion = 'tefekkur',
+    this.topK = 4,
+  });
+
+  ChatState copyWith({
+    List<ChatMessage>? messages,
+    bool? isLoading,
+    String? error,
+    String? currentEmotion,
+    int? topK,   
+  }) {
+    return ChatState(
+      messages: messages ?? this.messages,
+      isLoading: isLoading ?? this.isLoading,
+      error: error ?? this.error,
+      currentEmotion: currentEmotion ?? this.currentEmotion,
+      topK: topK ?? this.topK,
+    );
+  }
+}
+
+class ChatNotifier extends StateNotifier<ChatState> {
+  static const _welcomeMessage = 'Esselâmu aleyküm aziz kardeşim. Gönlünüze takılanları benimle paylaşabilirsiniz.';
+  static const _maxHistoryForApi = 20; // Servera gönderilecek max mesaj
+  
+  String _detectEmotion(String text) {
+    final lower = text.toLowerCase();
+    if (lower.contains('hüzün') || lower.contains('keder') || lower.contains('ağla') || lower.contains('elem')) return 'huzun';
+    if (lower.contains('coşku') || lower.contains('sevinç') || lower.contains('neşe') || lower.contains('müjde')) return 'cosku';
+    if (lower.contains('şefkat') || lower.contains('merhamet') || lower.contains('sevgi') || lower.contains('muhabbet')) return 'sefkat';
+    if (lower.contains('ümit') || lower.contains('umut') || lower.contains('inşallah')) return 'umut';
+    return 'tefekkur';
+  }
+
+
+  ChatNotifier() : super(ChatState(messages: [])) {
+    _loadHistory();
+  }
+
+  // Geçmişi yükle
+  Future<void> _loadHistory() async {
+    final prefs = await SharedPreferences.getInstance();
+    final userEmail = prefs.getString('user_email') ?? 'guest';
+
+    // Guest ise geçmiş yükleme, sadece karşılama mesajı göster
+    if (userEmail == 'guest') {
+      state = state.copyWith(messages: [_welcomeMsg()]);
+      return;
+    }
+
+    final key = 'chat_history_$userEmail';
+    final jsonStr = prefs.getString(key);
+
+    if (jsonStr == null) {
+      state = state.copyWith(messages: [_welcomeMsg()]);
+      return;
+    }
+
+    try {
+      final List<dynamic> jsonList = jsonDecode(jsonStr);
+      final messages = jsonList
+          .map((e) => ChatMessage.fromJson(e as Map<String, dynamic>))
+          .toList();
+      state = state.copyWith(
+        messages: messages.isEmpty ? [_welcomeMsg()] : messages,
+      );
+    } catch (_) {
+      state = state.copyWith(messages: [_welcomeMsg()]);
+    }
+  }
+
+  // Geçmişi kaydet
+  Future<void> _saveHistory() async {
+    final prefs = await SharedPreferences.getInstance();
+    final userEmail = prefs.getString('user_email') ?? 'guest';
+
+    // Guest ise kaydetme
+    if (userEmail == 'guest') return;
+
+    final key = 'chat_history_$userEmail';
+    final jsonStr = jsonEncode(
+      state.messages.map((m) => m.toJson()).toList(),
+    );
+    await prefs.setString(key, jsonStr);
+  }
+
+  ChatMessage _welcomeMsg() => ChatMessage(
+    text: _welcomeMessage,
+    isUserMessage: false,
+    timestamp: DateTime.now(),
+  );
+
+  // Geçmişi temizle
+  Future<void> clearHistory() async {
+    final prefs = await SharedPreferences.getInstance();
+    final userEmail = prefs.getString('user_email') ?? 'guest';
+    await prefs.remove('chat_history_$userEmail');
+    state = state.copyWith(messages: [_welcomeMsg()]);
+  }
+
+  void setTopK(int value) {
+    state = state.copyWith(topK: value);
+  }
+
+
+
+  Future<void> sendMessage(String text) async {
+    final userMessage = ChatMessage(
+      text: text,
+      isUserMessage: true,
+      timestamp: DateTime.now(),
+    );
+
+    state = state.copyWith(
+      messages: [...state.messages, userMessage],
+      isLoading: true,
+      error: null,
+    );
+
+    final aiPlaceholder = ChatMessage(
+      text: '',
+      isUserMessage: false,
+      timestamp: DateTime.now(),
+    );
+    state = state.copyWith(
+      messages: [...state.messages, aiPlaceholder],
+    );
+
+    try {
+      // Son 20 mesajı al (API için)
+      final allMessages = state.messages.where((m) => m.text.isNotEmpty).toList();
+      final recentMessages = allMessages.length > _maxHistoryForApi
+          ? allMessages.sublist(allMessages.length - _maxHistoryForApi)
+          : allMessages;
+
+      final history = recentMessages
+          .map((msg) => {
+                'role': msg.isUserMessage ? 'user' : 'assistant',
+                'content': msg.text,
+              })
+          .toList();
+
+      String fullText = '';
+      List<Map<String, String>> sources = [];
+
+      bool collectingSources = false;
+      String sourcesBuffer = '';
+
+      await for (final chunk in ApiService.streamMessage(
+        message: text,
+        history: history,
+        topK: state.topK,
+      )) {
+        String processedChunk = chunk;
+
+        if (collectingSources) {
+          // Sources JSON'unu biriktirmeye devam et
+          sourcesBuffer += chunk;
+          if (sourcesBuffer.contains('[/SOURCES]')) {
+            final sourcesEnd = sourcesBuffer.indexOf('[/SOURCES]');
+            final sourcesJson = sourcesBuffer.substring(0, sourcesEnd);
+            try {
+              final decoded = jsonDecode(sourcesJson) as List<dynamic>;
+              sources = decoded
+                  .map((e) => Map<String, String>.from(e as Map))
+                  .toList();
+            } catch (_) {}
+            processedChunk = sourcesBuffer.substring(sourcesEnd + '[/SOURCES]'.length);
+            collectingSources = false;
+            sourcesBuffer = '';
+            if (processedChunk.isEmpty) continue;
+          } else {
+            continue; // Henüz tamamlanmadı, biriktirmeye devam
+          }
+        } else if (chunk.contains('[SOURCES]')) {
+          final sourcesStart = chunk.indexOf('[SOURCES]') + '[SOURCES]'.length;
+          sourcesBuffer = chunk.substring(sourcesStart);
+
+          if (sourcesBuffer.contains('[/SOURCES]')) {
+            // Şanslı durum: tek chunk'ta tamamlandı
+            final sourcesEnd = sourcesBuffer.indexOf('[/SOURCES]');
+            final sourcesJson = sourcesBuffer.substring(0, sourcesEnd);
+            try {
+              final decoded = jsonDecode(sourcesJson) as List<dynamic>;
+              sources = decoded
+                  .map((e) => Map<String, String>.from(e as Map))
+                  .toList();
+            } catch (_) {}
+            processedChunk = sourcesBuffer.substring(sourcesEnd + '[/SOURCES]'.length);
+            sourcesBuffer = '';
+            if (processedChunk.isEmpty) continue;
+          } else {
+            // Büyük JSON, birden fazla chunk'a bölündü
+            collectingSources = true;
+            continue;
+          }
+        }
+
+        fullText += processedChunk;
+        final updatedMessages = [...state.messages];
+        updatedMessages[updatedMessages.length - 1] = ChatMessage(
+          text: fullText,
+          isUserMessage: false,
+          timestamp: aiPlaceholder.timestamp,
+          sources: sources,
+        );
+        state = state.copyWith(
+          messages: updatedMessages,
+          isLoading: false,
+        );
+      }
+
+      // Duyguyu al
+      // final emotionResponse = await ApiService.sendMessage(
+      //   message: text,
+      //   history: history,
+      // );
+      // state = state.copyWith(
+      //   currentEmotion: emotionResponse['emotion'] as String? ?? state.currentEmotion,
+      // );
+
+      // Duyguyu client-side tespit et
+      final emotion = _detectEmotion(fullText);
+      state = state.copyWith(currentEmotion: emotion);
+
+      // Geçmişi kaydet
+      await _saveHistory();
+
+      // TTS
+      // TTS - max 300 karakter
+      try {
+        final ttsText = fullText.length > 300 
+            ? fullText.substring(0, 300) 
+            : fullText;
+        final audioBytes = await ApiService.synthesizeSpeech(ttsText);
+        final dir = await getTemporaryDirectory();
+        final file = File('${dir.path}/response.wav');
+        await file.writeAsBytes(audioBytes);
+        final player = AudioPlayer();
+        await player.play(DeviceFileSource(file.path));
+      } catch (_) {
+        // Ses hatası sessizce geç
+      }
+
+    } catch (e) {
+      final errorMessage = ChatMessage(
+        text: 'Bağlantı sorunu: ${e.toString()}',
+        isUserMessage: false,
+        timestamp: DateTime.now(),
+      );
+      state = state.copyWith(
+        messages: [...state.messages, errorMessage],
+        isLoading: false,
+      );
+    }
+  }
+
+  Future<void> sendVoiceMessage(List<int> audioBytes) async {
+    state = state.copyWith(isLoading: true, error: null);
+    try {
+      final text = await ApiService.transcribeAudio(audioBytes);
+      if (text.trim().isEmpty) {
+        state = state.copyWith(isLoading: false);
+        return;
+      }
+      await sendMessage(text);
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        error: e.toString(),
+      );
+    }
+  }
+}
+
+final chatProvider = StateNotifierProvider<ChatNotifier, ChatState>(
+  (ref) => ChatNotifier(),
+);
+
+================================================================================
+# DOSYA #3 SONU: frontend\hocaefendi_ai_app\lib\providers\chat_provider.dart
+================================================================================
+
+================================================================================
+DOSYA #4
+--------------------------------------------------------------------------------
+  Ad            : auth_screen.dart
+  Dil           : Dart
+  Yol           : frontend\hocaefendi_ai_app\lib\screens\auth_screen.dart
+  Son Değişim   : 2026-03-08 13:46:25
+  Satır         : 142
+--------------------------------------------------------------------------------
+
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../services/auth_service.dart';
+import 'chat_screen.dart';
+
+class AuthScreen extends ConsumerStatefulWidget {
+  const AuthScreen({super.key});
+
+  @override
+  ConsumerState<AuthScreen> createState() => _AuthScreenState();
+}
+
+class _AuthScreenState extends ConsumerState<AuthScreen> {
+  bool _isLoading = false;
+
+  Future<void> _signInWithGoogle() async {
+    setState(() => _isLoading = true);
+    final account = await AuthService.signIn();
+    if (account != null && mounted) {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const ChatScreen()),
+      );
+    } else {
+      setState(() => _isLoading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Giriş başarısız, tekrar deneyin.')),
+        );
+      }
+    }
+  }
+
+  Future<void> _continueAsGuest() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('user_email', 'guest');
+    await prefs.setString('user_name', 'Misafir');
+    await prefs.setString('user_photo', '');
+    if (mounted) {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const ChatScreen()),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFF1A1A1A),
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 400),
+          child: Padding(
+            padding: const EdgeInsets.all(32),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Text(
+                  'HocaefendiAI',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 36,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Esselâmu aleyküm',
+                  style: TextStyle(color: Colors.white54, fontSize: 18),
+                ),
+                const SizedBox(height: 60),
+                _isLoading
+                    ? const CircularProgressIndicator(color: Color(0xFF1B5E20))
+                    : SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: _signInWithGoogle,
+                          icon: const Icon(Icons.login, color: Colors.blue),
+                          label: const Text(
+                            'Google ile Giriş Yap',
+                            style: TextStyle(fontSize: 16),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.white,
+                            foregroundColor: Colors.black87,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                        ),
+                      ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: _continueAsGuest,
+                    icon: const Icon(Icons.person_outline, color: Colors.white54),
+                    label: const Text(
+                      'Misafir olarak devam et',
+                      style: TextStyle(fontSize: 16, color: Colors.white54),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      side: const BorderSide(color: Colors.white24),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: Colors.orange.withValues(alpha: 0.3),
+                    ),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.info_outline, color: Colors.orange, size: 18),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Misafir girişinde sohbet geçmişiniz kaydedilmez.',
+                          style: TextStyle(color: Colors.orange, fontSize: 13),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+================================================================================
+# DOSYA #4 SONU: frontend\hocaefendi_ai_app\lib\screens\auth_screen.dart
+================================================================================
+
+================================================================================
+DOSYA #5
+--------------------------------------------------------------------------------
+  Ad            : chat_screen.dart
+  Dil           : Dart
+  Yol           : frontend\hocaefendi_ai_app\lib\screens\chat_screen.dart
+  Son Değişim   : 2026-03-09 22:49:03
+  Satır         : 296
+--------------------------------------------------------------------------------
+
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../providers/chat_provider.dart';
+import '../widgets/chat_bubble.dart';
+import '../widgets/emotion_image_widget.dart';
+import '../widgets/voice_button.dart';
+import '../services/auth_service.dart';
+import 'auth_screen.dart';
+
+class ChatScreen extends ConsumerStatefulWidget {
+  const ChatScreen({super.key});
+
+  @override
+  ConsumerState<ChatScreen> createState() => _ChatScreenState();
+}
+
+class _ChatScreenState extends ConsumerState<ChatScreen> {
+  final TextEditingController _controller = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
+  String _userName = 'Misafir';
+  String _userPhoto = '';
+
+  void _showRagSettings(BuildContext context) {
+    final chatState = ref.read(chatProvider);
+    int tempTopK = chatState.topK;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF2C2C2C),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setModalState) {
+            return Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'RAG Kaynak Sayısı',
+                    style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'AI cevap verirken $tempTopK kaynak kullanacak',
+                    style: const TextStyle(color: Colors.white54, fontSize: 13),
+                  ),
+                  Slider(
+                    value: tempTopK.toDouble(),
+                    min: 4,
+                    max: 30,
+                    divisions: 26,
+                    label: '$tempTopK kaynak',
+                    activeColor: const Color(0xFF1B5E20),
+                    onChanged: (val) {
+                      setModalState(() => tempTopK = val.toInt());
+                    },
+                  ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('4 (hızlı)', style: TextStyle(color: Colors.white38, fontSize: 11)),
+                      const Text('30 (kapsamlı)', style: TextStyle(color: Colors.white38, fontSize: 11)),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1B5E20)),
+                      onPressed: () {
+                        ref.read(chatProvider.notifier).setTopK(tempTopK);
+                        Navigator.pop(ctx);
+                      },
+                      child: const Text('Kaydet', style: TextStyle(color: Colors.white)),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+
+
+
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserName();
+  }
+
+  Future<void> _loadUserName() async {
+    final info = await AuthService.getUserInfo();
+    setState(() {
+      _userName = info['name']?.isNotEmpty == true ? info['name']! : 'Misafir';
+      _userPhoto = info['photo'] ?? '';  // ← ekle
+    });
+  }
+
+  void _sendMessage() {
+    final text = _controller.text.trim();
+    if (text.isEmpty) return;
+    _controller.clear();
+    ref.read(chatProvider.notifier).sendMessage(text);
+    Future.delayed(const Duration(milliseconds: 300), _scrollToBottom);
+  }
+
+  void _scrollToBottom() {
+    if (_scrollController.hasClients) {
+      _scrollController.animateTo(
+        _scrollController.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final chatState = ref.watch(chatProvider);
+
+    return Scaffold(
+      resizeToAvoidBottomInset: true,
+      backgroundColor: const Color(0xFF1A1A1A),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF1B5E20),
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (_userPhoto.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: CircleAvatar(
+                  radius: 16,
+                  backgroundImage: NetworkImage(_userPhoto),
+                ),
+              )
+            else
+              const Padding(
+                padding: EdgeInsets.only(right: 8),
+                child: CircleAvatar(
+                  radius: 16,
+                  backgroundColor: Colors.white24,
+                  child: Icon(Icons.person, size: 18, color: Colors.white),
+                ),
+              ),
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('HocaefendiAI',
+                    style: TextStyle(color: Colors.white, fontSize: 16)),
+                Text(_userName,
+                    style: const TextStyle(color: Colors.white70, fontSize: 11)),
+              ],
+            ),
+          ],
+        ),
+        centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.delete_outline, color: Colors.white),
+            tooltip: 'Sohbeti temizle',
+            onPressed: () {
+              ref.read(chatProvider.notifier).clearHistory();
+            },
+          ),
+
+          IconButton(
+            icon: const Icon(Icons.tune, color: Colors.white),
+            tooltip: 'RAG Ayarları',
+            onPressed: () => _showRagSettings(context),
+          ),
+
+
+          IconButton(
+            icon: const Icon(Icons.logout, color: Colors.white),
+            tooltip: 'Çıkış yap',
+            onPressed: () async {
+              await AuthService.signOut();
+              if (context.mounted) {
+                Navigator.of(context).pushReplacement(
+                  MaterialPageRoute(builder: (_) => const AuthScreen()),
+                );
+              }
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.copy, color: Colors.white),
+            tooltip: 'Tüm sohbeti kopyala',
+            onPressed: () {
+              final chatState = ref.read(chatProvider);
+              final allText = chatState.messages
+                  .map((m) =>
+                      '${m.isUserMessage ? "Sen" : "Hocaefendi"}: ${m.text}')
+                  .join('\n\n');
+              Clipboard.setData(ClipboardData(text: allText));
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Sohbet kopyalandı!')),
+              );
+            },
+          ),
+        ],
+      ),
+      body: Stack(
+        children: [
+          // Ana içerik — tüm ekranı kaplar
+          Column(
+            children: [
+              Expanded(
+                child: ListView.builder(
+                  controller: _scrollController,
+                  itemCount: chatState.messages.length,
+                  itemBuilder: (context, index) {
+                    return ChatBubble(message: chatState.messages[index]);
+                  },
+                ),
+              ),
+              if (chatState.isLoading)
+                const Padding(
+                  padding: EdgeInsets.all(8),
+                  child: CircularProgressIndicator(color: Color(0xFF1B5E20)),
+                ),
+              Container(
+                padding: const EdgeInsets.all(8),
+                color: const Color(0xFF2C2C2C),
+                child: Row(
+                  children: [
+                    const VoiceButton(),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: TextField(
+                        controller: _controller,
+                        style: const TextStyle(color: Colors.white),
+                        decoration: InputDecoration(
+                          hintText: 'Mesajınızı yazın...',
+                          hintStyle: const TextStyle(color: Colors.white54),
+                          filled: true,
+                          fillColor: const Color(0xFF3C3C3C),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(24),
+                            borderSide: BorderSide.none,
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 10,
+                          ),
+                        ),
+                        onSubmitted: (_) => _sendMessage(),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    IconButton(
+                      onPressed: chatState.isLoading ? null : _sendMessage,
+                      icon: const Icon(Icons.send, color: Color(0xFF1B5E20)),
+                      iconSize: 28,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+
+          // Küçük duygu resmi — sağ üst köşe
+          Positioned(
+            top: 8,
+            right: 8,
+            child: Builder(
+              builder: (context) {
+                // Ekranın kısa kenarının %12'si, min 50 max 90 piksel
+                final size = (MediaQuery.of(context).size.shortestSide * 0.12)
+                    .clamp(50.0, 90.0);
+                return ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: SizedBox(
+                    width: size,
+                    height: size,
+                    child: EmotionImageWidget(emotion: chatState.currentEmotion),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+================================================================================
+# DOSYA #5 SONU: frontend\hocaefendi_ai_app\lib\screens\chat_screen.dart
+================================================================================
+
+================================================================================
+DOSYA #6
+--------------------------------------------------------------------------------
+  Ad            : login_screen.dart
+  Dil           : Dart
+  Yol           : frontend\hocaefendi_ai_app\lib\screens\login_screen.dart
+  Son Değişim   : 2026-03-05 11:30:12
+  Satır         : 0
+--------------------------------------------------------------------------------
+
+
+================================================================================
+# DOSYA #6 SONU: frontend\hocaefendi_ai_app\lib\screens\login_screen.dart
+================================================================================
+
+================================================================================
+DOSYA #7
+--------------------------------------------------------------------------------
+  Ad            : splash_screen.dart
+  Dil           : Dart
+  Yol           : frontend\hocaefendi_ai_app\lib\screens\splash_screen.dart
+  Son Değişim   : 2026-03-05 11:30:32
+  Satır         : 0
+--------------------------------------------------------------------------------
+
+
+================================================================================
+# DOSYA #7 SONU: frontend\hocaefendi_ai_app\lib\screens\splash_screen.dart
+================================================================================
+
+================================================================================
+DOSYA #8
+--------------------------------------------------------------------------------
+  Ad            : api_service.dart
+  Dil           : Dart
+  Yol           : frontend\hocaefendi_ai_app\lib\services\api_service.dart
+  Son Değişim   : 2026-03-09 16:45:23
+  Satır         : 102
+--------------------------------------------------------------------------------
+
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+
+class ApiService {
+  static const String baseUrl = 'https://aimaden.com';
+
+  // Sohbet mesajı gönder
+  static Future<Map<String, dynamic>> sendMessage({
+    required String message,
+    List<Map<String, dynamic>> history = const [],
+    bool useRag = true,
+  }) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/chat/message'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'message': message,
+        'history': history,
+        'use_rag': useRag,
+        'stream': false,
+      }),
+    );
+
+    if (response.statusCode == 200) {
+      return jsonDecode(utf8.decode(response.bodyBytes));
+    } else {
+      throw Exception('Sunucu hatası: ${response.statusCode}');
+    }
+  }
+
+  // Mevcut sendMessage metodunun altına ekle: (steaming, kelimelerin teker teker ekrana yagmasi)
+  static Stream<String> streamMessage({
+    required String message,
+    List<Map<String, dynamic>> history = const [],
+    int topK = 4,
+  }) async* {
+    final request = http.Request(
+      'POST',
+      Uri.parse('$baseUrl/chat/stream'),
+    );
+    request.headers['Content-Type'] = 'application/json';
+    request.body = jsonEncode({
+      'message': message,
+      'history': history,
+      'use_rag': true,
+      'stream': true,
+      'top_k': topK,
+    });
+
+    final client = http.Client();
+    try {
+      final response = await client.send(request);
+      await for (final chunk in response.stream.transform(utf8.decoder)) {
+        yield chunk;
+      }
+    } finally {
+      client.close();
+    }
+  }
+
+  // Sağlık kontrolü
+  static Future<bool> healthCheck() async {
+    try {
+      final response = await http.get(Uri.parse('$baseUrl/'));
+      return response.statusCode == 200;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  // Sesi metne çevir (STT)
+  static Future<String> transcribeAudio(List<int> audioBytes) async {
+    final request = http.MultipartRequest(
+      'POST',
+      Uri.parse('$baseUrl/voice/transcribe'),
+    );
+    request.files.add(http.MultipartFile.fromBytes(
+      'file',
+      audioBytes,
+      filename: 'recording.wav',  // ← pcm değil wav
+    ));
+    final response = await request.send();
+    final body = await response.stream.bytesToString();
+    final json = jsonDecode(body);
+    return json['text'] as String;
+  }
+
+  // Metni sese çevir (TTS)
+  static Future<List<int>> synthesizeSpeech(String text) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/voice/synthesize'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'text': text}),
+    );
+    if (response.statusCode == 200) {
+      return response.bodyBytes;
+    } else {
+      throw Exception('TTS hatası: ${response.statusCode}');
+    }
+  }
+
+}
+
+================================================================================
+# DOSYA #8 SONU: frontend\hocaefendi_ai_app\lib\services\api_service.dart
+================================================================================
+
+================================================================================
+DOSYA #9
+--------------------------------------------------------------------------------
+  Ad            : auth_service.dart
+  Dil           : Dart
+  Yol           : frontend\hocaefendi_ai_app\lib\services\auth_service.dart
+  Son Değişim   : 2026-03-07 14:15:14
+  Satır         : 52
+--------------------------------------------------------------------------------
+
+import 'package:google_sign_in/google_sign_in.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/foundation.dart';
+
+class AuthService {
+  static final GoogleSignIn _googleSignIn = GoogleSignIn(
+    
+    scopes: ['email', 'profile'],
+  );
+
+  // Giriş yap
+  static Future<GoogleSignInAccount?> signIn() async {
+    try {
+      final account = await _googleSignIn.signIn();
+      if (account != null) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('user_email', account.email);
+        await prefs.setString('user_name', account.displayName ?? '');
+        await prefs.setString('user_photo', account.photoUrl ?? '');
+      }
+      return account;
+    } catch (e) {
+      debugPrint('Google Sign-In hatası: $e'); // ← ekle
+      return null;
+    }
+  }
+
+  // Çıkış yap
+  static Future<void> signOut() async {
+    await _googleSignIn.signOut();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('user_email');
+    await prefs.remove('user_name');
+    await prefs.remove('user_photo');
+  }
+
+  // Giriş yapılmış mı?
+  static Future<bool> isSignedIn() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('user_email') != null;
+  }
+
+  // Kullanıcı bilgisi
+  static Future<Map<String, String>> getUserInfo() async {
+    final prefs = await SharedPreferences.getInstance();
+    return {
+      'email': prefs.getString('user_email') ?? '',
+      'name': prefs.getString('user_name') ?? '',
+      'photo': prefs.getString('user_photo') ?? '',
+    };
+  }
+}
+
+================================================================================
+# DOSYA #9 SONU: frontend\hocaefendi_ai_app\lib\services\auth_service.dart
+================================================================================
+
+================================================================================
+DOSYA #10
+--------------------------------------------------------------------------------
+  Ad            : chat_bubble.dart
+  Dil           : Dart
+  Yol           : frontend\hocaefendi_ai_app\lib\widgets\chat_bubble.dart
+  Son Değişim   : 2026-03-09 20:26:38
+  Satır         : 144
+--------------------------------------------------------------------------------
+
+import 'package:flutter/material.dart';
+import '../models/chat_message.dart';
+
+class ChatBubble extends StatelessWidget {
+  final ChatMessage message;
+
+  const ChatBubble({super.key, required this.message});
+
+
+void _showSources(BuildContext context) {
+  showModalBottomSheet(
+    context: context,
+    backgroundColor: const Color(0xFF2C2C2C),
+    isScrollControlled: true,          // ← overflow düzeltmesi
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+    ),
+    builder: (_) => DraggableScrollableSheet(
+      initialChildSize: 0.5,
+      maxChildSize: 0.9,
+      minChildSize: 0.3,
+      expand: false,
+      builder: (_, scrollController) => Column(
+        children: [
+          const Padding(
+            padding: EdgeInsets.all(16),
+            child: Text(
+              '📚 Kullanılan Kaynaklar',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          Expanded(
+            child: ListView.builder(
+              controller: scrollController,
+              itemCount: message.sources.length,
+              itemBuilder: (ctx, i) {
+                final source = message.sources[i];
+                return ListTile(
+                  leading: const Icon(Icons.book, color: Color(0xFF81C784)),
+                  title: Text(
+                    source['name'] ?? '',
+                    style: const TextStyle(color: Colors.white, fontSize: 13),
+                  ),
+                  trailing: const Icon(Icons.chevron_right, color: Colors.white38),
+                  onTap: () => _showSourceContent(ctx, source),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+void _showSourceContent(BuildContext context, Map<String, String> source) {
+  showDialog(
+    context: context,
+    builder: (_) => AlertDialog(
+      backgroundColor: const Color(0xFF2C2C2C),
+      title: Text(
+        source['name'] ?? 'Kaynak',
+        style: const TextStyle(color: Colors.white, fontSize: 14),
+      ),
+      content: SingleChildScrollView(
+        child: Text(
+          source['content'] ?? 'İçerik bulunamadı.',
+          style: const TextStyle(color: Colors.white70, fontSize: 13, height: 1.5),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Kapat', style: TextStyle(color: Color(0xFF81C784))),
+        ),
+      ],
+    ),
+  );
+}
+
+@override
+  Widget build(BuildContext context) {
+    final isUser = message.isUserMessage;
+
+    return Align(
+      alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 12),
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
+        constraints: BoxConstraints(
+          maxWidth: MediaQuery.of(context).size.width * 0.75,
+        ),
+        decoration: BoxDecoration(
+          color: isUser ? const Color(0xFF1B5E20) : const Color(0xFF2C2C2C),
+          borderRadius: BorderRadius.only(
+            topLeft: const Radius.circular(16),
+            topRight: const Radius.circular(16),
+            bottomLeft: Radius.circular(isUser ? 16 : 4),
+            bottomRight: Radius.circular(isUser ? 4 : 16),
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SelectableText(
+              message.text,
+              style: const TextStyle(color: Colors.white, fontSize: 15),
+            ),
+            if (!isUser && message.sources.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: InkWell(
+                  onTap: () => _showSources(context),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.menu_book, size: 16, color: Color(0xFF81C784)),
+                      SizedBox(width: 4),
+                      Text(
+                        'Kaynakları Göster',
+                        style: TextStyle(
+                          color: Color(0xFF81C784),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+
+
+
+
+================================================================================
+# DOSYA #10 SONU: frontend\hocaefendi_ai_app\lib\widgets\chat_bubble.dart
+================================================================================
+
+================================================================================
+DOSYA #11
+--------------------------------------------------------------------------------
+  Ad            : emotion_image_widget.dart
+  Dil           : Dart
+  Yol           : frontend\hocaefendi_ai_app\lib\widgets\emotion_image_widget.dart
+  Son Değişim   : 2026-03-09 23:24:23
+  Satır         : 83
+--------------------------------------------------------------------------------
+
+import 'dart:async';
+import 'dart:math';
+import 'package:flutter/material.dart';
+
+class EmotionImageWidget extends StatefulWidget {
+  final String emotion;
+  const EmotionImageWidget({super.key, required this.emotion});
+
+  @override
+  State<EmotionImageWidget> createState() => _EmotionImageWidgetState();
+}
+
+class _EmotionImageWidgetState extends State<EmotionImageWidget> {
+  final _random = Random();
+  late String _currentImage;
+  Timer? _timer;
+
+  static const _emotionImages = {
+    'tefekkur': ['tefekkur_1.jpg', 'tefekkur_2.jpg', 'tefekkur_3.jpg', 'tefekkur_4.jpg'],
+    'huzun':    ['huzun_1.jpg',    'huzun_2.jpg',    'huzun_3.jpg',    'huzun_4.jpg'],
+    'cosku':    ['cosku_1.jpg',    'cosku_2.jpg'],
+    'sefkat':   ['sefkat_1.jpg',   'sefkat_2.jpg',   'sefkat_3.jpg',   'sefkat_4.jpg'],
+    'huzur':    ['huzur_1.jpg',    'huzur_2.jpg',    'huzur_3.jpg',    'huzur_4.jpg'],
+  };
+
+  String _randomImage(String emotion) {
+    final images = _emotionImages[emotion] ?? _emotionImages['tefekkur']!;
+    return 'assets/emotions/$emotion/${images[_random.nextInt(images.length)]}';
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _currentImage = _randomImage(widget.emotion);
+    _startTimer();
+  }
+
+  @override
+  void didUpdateWidget(EmotionImageWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.emotion != widget.emotion) {
+      setState(() => _currentImage = _randomImage(widget.emotion));
+    }
+  }
+
+  void _startTimer() {
+    _timer = Timer.periodic(const Duration(seconds: 4), (_) {
+      if (mounted) {
+        setState(() => _currentImage = _randomImage(widget.emotion));
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Ekran yüksekliğinin %20'si — telefonda ~150px, masaüstünde ~180px
+    final imageHeight = MediaQuery.of(context).size.height * 0.20;
+
+    return SizedBox(
+      height: imageHeight,
+      width: double.infinity,
+      child: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 800),
+        child: Image.asset(
+          _currentImage,
+          key: ValueKey(_currentImage),
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => Container(
+            color: const Color(0xFF2A2A2A),
+            child: const Icon(Icons.image_not_supported,
+                color: Colors.white24, size: 40),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+================================================================================
+# DOSYA #11 SONU: frontend\hocaefendi_ai_app\lib\widgets\emotion_image_widget.dart
+================================================================================
+
+================================================================================
+DOSYA #12
+--------------------------------------------------------------------------------
+  Ad            : voice_button.dart
+  Dil           : Dart
+  Yol           : frontend\hocaefendi_ai_app\lib\widgets\voice_button.dart
+  Son Değişim   : 2026-03-07 13:26:44
+  Satır         : 89
+--------------------------------------------------------------------------------
+
+import 'dart:io';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:record/record.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:path_provider/path_provider.dart';
+import '../providers/chat_provider.dart';
+
+class VoiceButton extends ConsumerStatefulWidget {
+  const VoiceButton({super.key});
+
+  @override
+  ConsumerState<VoiceButton> createState() => _VoiceButtonState();
+}
+
+class _VoiceButtonState extends ConsumerState<VoiceButton> {
+  final AudioRecorder _recorder = AudioRecorder();
+  bool _isRecording = false;
+  String? _recordingPath;
+
+  @override
+  void dispose() {
+    _recorder.dispose();
+    super.dispose();
+  }
+
+  Future<void> _startRecording() async {
+    final status = await Permission.microphone.request();
+    if (!status.isGranted) return;
+
+    try {
+      final dir = await getTemporaryDirectory();
+      _recordingPath = '${dir.path}/recording.wav';
+
+      await _recorder.start(
+        const RecordConfig(
+          encoder: AudioEncoder.wav,
+          sampleRate: 16000,
+          numChannels: 1,
+        ),
+        path: _recordingPath!,
+      );
+
+      setState(() => _isRecording = true);
+    } catch (e) {
+      debugPrint('Kayıt başlatma hatası: $e');
+    }
+  }
+
+  Future<void> _stopRecording() async {
+    await _recorder.stop();
+    setState(() => _isRecording = false);
+
+    if (_recordingPath == null) return;
+
+    final file = File(_recordingPath!);
+    if (!await file.exists()) return;
+
+    final audioBytes = await file.readAsBytes();
+    await ref.read(chatProvider.notifier).sendVoiceMessage(audioBytes);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isLoading = ref.watch(chatProvider.select((s) => s.isLoading));
+
+    return GestureDetector(
+      onLongPressStart: isLoading ? null : (_) => _startRecording(),
+      onLongPressEnd: isLoading ? null : (_) => _stopRecording(),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: isLoading
+              ? Colors.grey
+              : _isRecording
+                  ? Colors.red
+                  : const Color(0xFF1B5E20),
+          shape: BoxShape.circle,
+        ),
+        child: Icon(
+          isLoading ? Icons.hourglass_empty : (_isRecording ? Icons.stop : Icons.mic),
+          color: Colors.white,
+          size: 28,
+        ),
+      ),
+    );
+  }
+}
+
+================================================================================
+# DOSYA #12 SONU: frontend\hocaefendi_ai_app\lib\widgets\voice_button.dart
+================================================================================
+
+================================================================================
+DOSYA #13
+--------------------------------------------------------------------------------
+  Ad            : voice_input_button.dart
+  Dil           : Dart
+  Yol           : frontend\hocaefendi_ai_app\lib\widgets\voice_input_button.dart
+  Son Değişim   : 2026-03-05 11:31:23
+  Satır         : 0
+--------------------------------------------------------------------------------
+
+
+================================================================================
+# DOSYA #13 SONU: frontend\hocaefendi_ai_app\lib\widgets\voice_input_button.dart
+================================================================================
+
+================================================================================
+DOSYA #14
+--------------------------------------------------------------------------------
+  Ad            : widget_test.dart
+  Dil           : Dart
+  Yol           : frontend\hocaefendi_ai_app\test\widget_test.dart
+  Son Değişim   : 2026-03-05 11:29:15
+  Satır         : 30
+--------------------------------------------------------------------------------
+
+// This is a basic Flutter widget test.
+//
+// To perform an interaction with a widget in your test, use the WidgetTester
+// utility in the flutter_test package. For example, you can send tap and scroll
+// gestures. You can also use WidgetTester to find child widgets in the widget
+// tree, read text, and verify that the values of widget properties are correct.
+
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+import 'package:hocaefendi_ai_app/main.dart';
+
+void main() {
+  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
+    // Build our app and trigger a frame.
+    await tester.pumpWidget(const MyApp());
+
+    // Verify that our counter starts at 0.
+    expect(find.text('0'), findsOneWidget);
+    expect(find.text('1'), findsNothing);
+
+    // Tap the '+' icon and trigger a frame.
+    await tester.tap(find.byIcon(Icons.add));
+    await tester.pump();
+
+    // Verify that our counter has incremented.
+    expect(find.text('0'), findsNothing);
+    expect(find.text('1'), findsOneWidget);
+  });
+}
+
+================================================================================
+# DOSYA #14 SONU: frontend\hocaefendi_ai_app\test\widget_test.dart
+================================================================================
+
+================================================================================
+GRUP SONU: DART
+--------------------------------------------------------------------------------
+  Dosya Sayısı  : 14
+  Toplam Satır  : 1327
+================================================================================

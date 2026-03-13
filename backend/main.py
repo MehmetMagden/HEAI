@@ -1,18 +1,21 @@
-# main.py
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from routers import chat, rag
 from routers.voice import router as voice_router
 from routers.emotion import router as emotion_router
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from core.limiter import limiter   # ← artık buradan geliyor
 import os
+from starlette.responses import Response
 
-app = FastAPI(
-    title="HocaefendiAI API",
-    description="Fethullah Gülen AI Asistanı",
-    version="1.0.0"
-)
+app = FastAPI(title="HocaefendiAI API")
+
+# Rate limiting
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 app.add_middleware(
     CORSMiddleware,
@@ -27,21 +30,25 @@ app.include_router(rag.router,  prefix="/rag",  tags=["RAG"])
 app.include_router(voice_router)
 app.include_router(emotion_router)
 
-@app.get("/")
-async def root():
-    return {"app": "HocaefendiAI", "version": "1.0.0", "status": "çalışıyor ✅"}
+@app.get("/health")
+async def health():
+    return {"status": "ok", "model": "qwen2.5:7b-instruct-q5_K_M"}
 
-
-# ... mevcut router'lar ...
-
-# Flutter web dosyalarını serve et
 WEB_DIR = os.path.join(os.path.dirname(__file__), "web")
-if os.path.exists(WEB_DIR):
-    app.mount("/app", StaticFiles(directory=WEB_DIR, html=True), name="web")
 
 @app.get("/")
 async def root():
     index_path = os.path.join(WEB_DIR, "index.html")
     if os.path.exists(index_path):
         return FileResponse(index_path)
-    return {"status": "ok"}    
+    return {"app": "HocaefendiAI", "status": "çalışıyor ✅"}
+
+if os.path.exists(WEB_DIR):
+    app.mount("/", StaticFiles(directory=WEB_DIR, html=True), name="web")
+
+
+@app.exception_handler(Exception)
+async def generic_exception_handler(request, exc):
+    if "WinError 123" in str(exc) or "OSError" in str(exc):
+        return Response(status_code=404, content="Not Found")
+    raise exc

@@ -1,12 +1,17 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
-import 'package:audioplayers/audioplayers.dart';
+
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:path_provider/path_provider.dart';
+
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/chat_message.dart';
 import '../services/api_service.dart';
+import 'package:just_audio/just_audio.dart';
+import 'package:http/http.dart' as http;
+import 'package:flutter/foundation.dart';
+
+
 
 class ChatState {
   final List<ChatMessage> messages;
@@ -20,7 +25,7 @@ class ChatState {
     this.isLoading = false,
     this.error,
     this.currentEmotion = 'tefekkur',
-    this.topK = 4,
+    this.topK = 15,
   });
 
   ChatState copyWith({
@@ -43,6 +48,14 @@ class ChatState {
 class ChatNotifier extends StateNotifier<ChatState> {
   static const _welcomeMessage = 'Esselâmu aleyküm aziz kardeşim. Gönlünüze takılanları benimle paylaşabilirsiniz.';
   static const _maxHistoryForApi = 20; // Servera gönderilecek max mesaj
+  // TTS kuyruk sistemi
+  final List<String> _audioQueue = [];
+  bool _isPlaying = false;
+  AudioPlayer? _audioPlayer;
+  final String _baseUrl = 'https://aimaden.com'; // ApiService'teki base URL ne ise onu yaz
+
+
+
   
   String _detectEmotion(String text) {
     final lower = text.toLowerCase();
@@ -124,8 +137,97 @@ class ChatNotifier extends StateNotifier<ChatState> {
   }
 
 
+  Future<void> _startStreamingTTS(String text, String sessionId) async {
+    try {
+      final client = http.Client();
+      final request = http.Request(
+        'POST',
+        Uri.parse('$_baseUrl/voice/synthesize-stream'),
+      );
+      request.headers['Content-Type'] = 'application/json';
+      request.body = jsonEncode({'text': text, 'session_id': sessionId});
 
-  Future<void> sendMessage(String text) async {
+      final response = await client.send(request);
+
+      await for (final chunk in response.stream.transform(utf8.decoder)) {
+        final lines = chunk.split('\n');
+        for (final line in lines) {
+          if (!line.startsWith('data: ')) continue;
+          final jsonStr = line.substring(6).trim();
+          if (jsonStr.isEmpty) continue;
+
+          try {
+            final data = jsonDecode(jsonStr) as Map<String, dynamic>;
+            if (data['done'] == true) {
+              client.close();
+              break;
+            }
+            final audioUrl = data['url'] as String?;
+            if (audioUrl != null) {
+              _audioQueue.add('$_baseUrl$audioUrl');
+              if (!_isPlaying) {
+                _playNext();
+              }
+            }
+          } catch (_) {}
+        }
+      }
+      client.close();
+    } catch (e) {
+      // TTS hatası sessizce geç
+    }
+  }
+
+  Future<void> _playNext() async {
+    if (_audioQueue.isEmpty) {
+      _isPlaying = false;
+      return;
+    }
+
+    _isPlaying = true;
+    final url = _audioQueue.removeAt(0);
+
+    try {
+      _audioPlayer ??= AudioPlayer();
+      await _audioPlayer!.stop();
+      await _audioPlayer!.setUrl(url);
+      await _audioPlayer!.play();
+
+      // Cümle bitene kadar bekle, sonra sıradakine geç
+      await _audioPlayer!.playerStateStream.firstWhere(
+        (s) =>
+            s.processingState == ProcessingState.completed ||
+            s.processingState == ProcessingState.idle,
+      );
+
+      await _playNext();
+    } catch (e) {
+      debugPrint('Ses çalma hatası: $e');
+      await _playNext(); // Hata varsa atla
+    }
+  }
+
+  void _stopTTS() {
+    _audioQueue.clear();
+    _audioPlayer?.stop();
+    _isPlaying = false;
+  }
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+  Future<void> sendMessage(String text, {bool isVoice = false}) async {
     final userMessage = ChatMessage(
       text: text,
       isUserMessage: true,
@@ -247,20 +349,11 @@ class ChatNotifier extends StateNotifier<ChatState> {
       // Geçmişi kaydet
       await _saveHistory();
 
-      // TTS
-      // TTS - max 300 karakter
-      try {
-        final ttsText = fullText.length > 300 
-            ? fullText.substring(0, 300) 
-            : fullText;
-        final audioBytes = await ApiService.synthesizeSpeech(ttsText);
-        final dir = await getTemporaryDirectory();
-        final file = File('${dir.path}/response.wav');
-        await file.writeAsBytes(audioBytes);
-        final player = AudioPlayer();
-        await player.play(DeviceFileSource(file.path));
-      } catch (_) {
-        // Ses hatası sessizce geç
+      // TTS - Streaming
+      if (isVoice && fullText.isNotEmpty) {
+        final sessionId = DateTime.now().millisecondsSinceEpoch.toString();
+        _stopTTS(); // Önceki çalmayı durdur
+        _startStreamingTTS(fullText, sessionId);
       }
 
     } catch (e) {
@@ -284,7 +377,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
         state = state.copyWith(isLoading: false);
         return;
       }
-      await sendMessage(text);
+      await sendMessage(text, isVoice: true);  // ← isVoice: true eklendi
     } catch (e) {
       state = state.copyWith(
         isLoading: false,
@@ -292,6 +385,20 @@ class ChatNotifier extends StateNotifier<ChatState> {
       );
     }
   }
+
+  @override
+  void dispose() {
+    _stopTTS();
+    _audioPlayer?.dispose();
+    super.dispose();
+  }  
+
+
+
+
+
+
+
 }
 
 final chatProvider = StateNotifierProvider<ChatNotifier, ChatState>(

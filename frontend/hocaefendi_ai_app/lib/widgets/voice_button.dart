@@ -1,9 +1,7 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:record/record.dart';
-import 'package:permission_handler/permission_handler.dart';
-import 'package:path_provider/path_provider.dart';
+import 'package:http/http.dart' as http;
 import '../providers/chat_provider.dart';
 
 class VoiceButton extends ConsumerStatefulWidget {
@@ -16,7 +14,6 @@ class VoiceButton extends ConsumerStatefulWidget {
 class _VoiceButtonState extends ConsumerState<VoiceButton> {
   final AudioRecorder _recorder = AudioRecorder();
   bool _isRecording = false;
-  String? _recordingPath;
 
   @override
   void dispose() {
@@ -25,22 +22,22 @@ class _VoiceButtonState extends ConsumerState<VoiceButton> {
   }
 
   Future<void> _startRecording() async {
-    final status = await Permission.microphone.request();
-    if (!status.isGranted) return;
+    // record paketi web'de tarayıcı iznini otomatik ister
+    final hasPermission = await _recorder.hasPermission();
+    if (!hasPermission) {
+      debugPrint('Mikrofon izni reddedildi');
+      return;
+    }
 
     try {
-      final dir = await getTemporaryDirectory();
-      _recordingPath = '${dir.path}/recording.wav';
-
       await _recorder.start(
         const RecordConfig(
           encoder: AudioEncoder.wav,
           sampleRate: 16000,
           numChannels: 1,
         ),
-        path: _recordingPath!,
+        path: '', // Web'de path yok sayılır
       );
-
       setState(() => _isRecording = true);
     } catch (e) {
       debugPrint('Kayıt başlatma hatası: $e');
@@ -48,16 +45,30 @@ class _VoiceButtonState extends ConsumerState<VoiceButton> {
   }
 
   Future<void> _stopRecording() async {
-    await _recorder.stop();
-    setState(() => _isRecording = false);
+    try {
+      final blobUrl = await _recorder.stop();
+      setState(() => _isRecording = false);
 
-    if (_recordingPath == null) return;
+      if (blobUrl == null || blobUrl.isEmpty) {
+        debugPrint('Blob URL boş');
+        return;
+      }
 
-    final file = File(_recordingPath!);
-    if (!await file.exists()) return;
+      debugPrint('Blob URL: $blobUrl');
 
-    final audioBytes = await file.readAsBytes();
-    await ref.read(chatProvider.notifier).sendVoiceMessage(audioBytes);
+      // Web'de blob URL'i fetch ederek byte'lara çevir
+      final response = await http.get(Uri.parse(blobUrl));
+      if (response.statusCode == 200) {
+        final audioBytes = response.bodyBytes;
+        debugPrint('Ses boyutu: ${audioBytes.length} byte');
+        await ref.read(chatProvider.notifier).sendVoiceMessage(audioBytes);
+      } else {
+        debugPrint('Blob fetch hatası: ${response.statusCode}');
+      }
+    } catch (e) {
+      debugPrint('Kayıt durdurma hatası: $e');
+      setState(() => _isRecording = false);
+    }
   }
 
   @override
@@ -79,7 +90,9 @@ class _VoiceButtonState extends ConsumerState<VoiceButton> {
           shape: BoxShape.circle,
         ),
         child: Icon(
-          isLoading ? Icons.hourglass_empty : (_isRecording ? Icons.stop : Icons.mic),
+          isLoading
+              ? Icons.hourglass_empty
+              : (_isRecording ? Icons.stop : Icons.mic),
           color: Colors.white,
           size: 28,
         ),

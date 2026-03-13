@@ -52,8 +52,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   Slider(
                     value: tempTopK.toDouble(),
                     min: 4,
-                    max: 30,
-                    divisions: 26,
+                    max: 20,
+                    divisions: 19,
                     label: '$tempTopK kaynak',
                     activeColor: const Color(0xFF1B5E20),
                     onChanged: (val) {
@@ -129,6 +129,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final chatState = ref.watch(chatProvider);
 
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       backgroundColor: const Color(0xFF1A1A1A),
       appBar: AppBar(
         backgroundColor: const Color(0xFF1B5E20),
@@ -210,57 +211,82 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           ),
         ],
       ),
-      body: Column(
+      body: Stack(
         children: [
-          const EmotionImageWidget(),
-          Expanded(
-            child: ListView.builder(
-              controller: _scrollController,
-              itemCount: chatState.messages.length,
-              itemBuilder: (context, index) {
-                return ChatBubble(message: chatState.messages[index]);
-              },
-            ),
-          ),
-          if (chatState.isLoading)
-            const Padding(
-              padding: EdgeInsets.all(8),
-              child: CircularProgressIndicator(color: Color(0xFF1B5E20)),
-            ),
-          Container(
-            padding: const EdgeInsets.all(8),
-            color: const Color(0xFF2C2C2C),
-            child: Row(
-              children: [
-                const VoiceButton(),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: TextField(
-                    controller: _controller,
-                    style: const TextStyle(color: Colors.white),
-                    decoration: InputDecoration(
-                      hintText: 'Mesajınızı yazın...',
-                      hintStyle: const TextStyle(color: Colors.white54),
-                      filled: true,
-                      fillColor: const Color(0xFF3C3C3C),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(24),
-                        borderSide: BorderSide.none,
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 10,
+          // Ana içerik — tüm ekranı kaplar
+          Column(
+            children: [
+              Expanded(
+                child: ListView.builder(
+                  controller: _scrollController,
+                  itemCount: chatState.messages.length,
+                  itemBuilder: (context, index) {
+                    return ChatBubble(message: chatState.messages[index]);
+                  },
+                ),
+              ),
+              if (chatState.isLoading)
+                const Padding(
+                  padding: EdgeInsets.all(8),
+                  child: CircularProgressIndicator(color: Color(0xFF1B5E20)),
+                ),
+              Container(
+                padding: const EdgeInsets.all(8),
+                color: const Color(0xFF2C2C2C),
+                child: Row(
+                  children: [
+                    const VoiceButton(),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: TextField(
+                        controller: _controller,
+                        style: const TextStyle(color: Colors.white),
+                        decoration: InputDecoration(
+                          hintText: 'Mesajınızı yazın...',
+                          hintStyle: const TextStyle(color: Colors.white54),
+                          filled: true,
+                          fillColor: const Color(0xFF3C3C3C),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(24),
+                            borderSide: BorderSide.none,
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 10,
+                          ),
+                        ),
+                        onSubmitted: (_) => _sendMessage(),
                       ),
                     ),
-                    onSubmitted: (_) => _sendMessage(),
+                    const SizedBox(width: 8),
+                    IconButton(
+                      onPressed: chatState.isLoading ? null : _sendMessage,
+                      icon: const Icon(Icons.send, color: Color(0xFF1B5E20)),
+                      iconSize: 28,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+
+          // Küçük duygu resmi — sağ üst köşe
+          Positioned(
+            top: 8,
+            right: 8,
+            child: Builder(
+              builder: (context) {
+                // Ekranın kısa kenarının %12'si, min 50 max 90 piksel
+                final size = (MediaQuery.of(context).size.shortestSide * 0.12)
+                    .clamp(50.0, 90.0);
+                return ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: SizedBox(
+                    width: size,
+                    height: size,
+                    child: EmotionImageWidget(emotion: chatState.currentEmotion),
                   ),
-                ),
-                const SizedBox(width: 8),
-                IconButton(
-                  onPressed: chatState.isLoading ? null : _sendMessage,
-                  icon: const Icon(Icons.send, color: Color(0xFF1B5E20)),
-                  iconSize: 28,
-                ),
-              ],
+                );
+              },
             ),
           ),
         ],

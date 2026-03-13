@@ -13,7 +13,6 @@ REFERENCE_WAV     = VOICE_SAMPLES_DIR / "reference.wav"
 OUTPUT_DIR        = Path(__file__).parent.parent / "data" / "audio_output"
 UPLOAD_DIR        = Path(__file__).parent.parent / "data" / "audio_upload"
 
-# Model yolu (Windows AppData)
 XTTS_MODEL_PATH = os.path.join(
     os.path.expanduser("~"),
     "AppData", "Local", "tts",
@@ -34,7 +33,6 @@ class VoiceService:
         self._speaker_embedding = None
         logger.info(f"🎙️ VoiceService başlatıldı — Cihaz: {self.device}")
 
-    # ── STT ──────────────────────────────────────────────────────────
     def _load_whisper(self):
         if self._whisper is None:
             from faster_whisper import WhisperModel
@@ -51,7 +49,6 @@ class VoiceService:
         logger.info(f"📝 Transkript: {text[:80]}")
         return text.strip()
 
-    # ── TTS ──────────────────────────────────────────────────────────
     def _load_tts(self):
         if self._tts_model is None:
             from TTS.tts.configs.xtts_config import XttsConfig
@@ -71,7 +68,6 @@ class VoiceService:
             self._tts_config = config
             logger.info("✅ XTTS v2 hazır")
 
-            # Referans ses varsa conditioning latent'leri önceden hesapla
             if REFERENCE_WAV.exists():
                 logger.info("🎤 Referans ses conditioning hesaplanıyor...")
                 self._gpt_cond_latent, self._speaker_embedding = \
@@ -143,6 +139,65 @@ class VoiceService:
         if current.strip():
             chunks.append(current.strip())
         return chunks if chunks else [text[:max_chars]]
+
+    def synthesize_sentence(self, text: str, filename: str) -> str:
+        """Tek cümleyi sentezler, dosya yolunu döner."""
+        if len(text.strip()) < 5:
+            return ""
+        if not REFERENCE_WAV.exists():
+            raise FileNotFoundError(f"Referans ses bulunamadı: {REFERENCE_WAV}")
+
+        output_path = str(OUTPUT_DIR / filename)
+        model, config = self._load_tts()
+
+        out = model.inference(
+            text=text,
+            language="tr",
+            gpt_cond_latent=self._gpt_cond_latent,
+            speaker_embedding=self._speaker_embedding,
+            temperature=0.7,
+            length_penalty=1.0,
+            repetition_penalty=10.0,
+            top_k=50,
+            top_p=0.85,
+        )
+        sf.write(output_path, np.array(out["wav"]), 24000)
+        logger.info(f"✅ Cümle sesi: {filename}")
+        return output_path
+
+    def split_into_sentences(self, text: str) -> list:
+        """Metni akıllıca cümlelere böler."""
+        import re
+        text = re.sub(
+            r'\b(Hz|Dr|Prof|Yrd|Doç|Müh|s\.a\.v|r\.a|k\.s)\.',
+            lambda m: m.group().replace('.', '@@'),
+            text
+        )
+        sentences = re.split(r'(?<=[.!?])\s+', text)
+        sentences = [s.replace('@@', '.') for s in sentences]
+        result = []
+        buffer = ""
+        for s in sentences:
+            s = s.strip()
+            if not s:
+                continue
+            buffer = (buffer + " " + s).strip() if buffer else s
+            if len(buffer) >= 30:
+                result.append(buffer)
+                buffer = ""
+        if buffer:
+            result.append(buffer)
+        return result if result else [text]
+
+    def cleanup_old_audio(self, max_files: int = 50):
+        """Eski cümle ses dosyalarını temizler."""
+        files = sorted(
+            OUTPUT_DIR.glob("sentence_*.wav"),
+            key=lambda f: f.stat().st_mtime
+        )
+        while len(files) > max_files:
+            files[0].unlink()
+            files = files[1:]
 
 
 voice_service = VoiceService()

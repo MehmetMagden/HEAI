@@ -8,7 +8,7 @@ load_dotenv()
 
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
 OLLAMA_MODEL    = os.getenv("OLLAMA_MODEL", "qwen2.5:7b-instruct-q5_K_M")
-OLLAMA_NUM_CTX  = int(os.getenv("OLLAMA_NUM_CTX", "32768"))
+OLLAMA_NUM_CTX  = int(os.getenv("OLLAMA_NUM_CTX", "8192"))
 
 
 async def chat(messages: list[dict]) -> str:
@@ -27,7 +27,7 @@ async def chat(messages: list[dict]) -> str:
         }
     }
 
-    async with httpx.AsyncClient(timeout=120.0) as client:
+    async with httpx.AsyncClient(timeout=320.0) as client:
         response = await client.post(
             f"{OLLAMA_BASE_URL}/api/chat",
             json=payload
@@ -35,15 +35,16 @@ async def chat(messages: list[dict]) -> str:
         response.raise_for_status()
         result = response.json()["message"]["content"]
 
-        # Karakter/format kırılması kontrolü
         if not validate_response(result):
             return FALLBACK_RESPONSE
 
         return result
 
 
-async def chat_stream(messages: list[dict]):
-    """Streaming yanıt — kelime kelime gelir."""
+async def chat_stream(messages: list[dict], max_tokens: int = 400):
+    """Streaming yanıt üretir."""
+    from prompts.hocaefendi_prompt import validate_response
+
     payload = {
         "model": OLLAMA_MODEL,
         "messages": messages,
@@ -52,11 +53,14 @@ async def chat_stream(messages: list[dict]):
             "num_ctx": OLLAMA_NUM_CTX,
             "temperature": 0.7,
             "top_p": 0.9,
-            "repeat_penalty": 1.1
+            "repeat_penalty": 1.1,
+            "num_predict": max_tokens
         }
     }
 
-    async with httpx.AsyncClient(timeout=120.0) as client:
+    full_response = ""
+
+    async with httpx.AsyncClient(timeout=320.0) as client:
         async with client.stream(
             "POST",
             f"{OLLAMA_BASE_URL}/api/chat",
@@ -68,21 +72,23 @@ async def chat_stream(messages: list[dict]):
                     if not data.get("done", False):
                         token = data.get("message", {}).get("content", "")
                         if token:
+                            full_response += token
                             yield token
+
+    # Sadece loglama — yanıt zaten gönderildi
+    if not validate_response(full_response):
+        print("⚠️ chat_stream: validate_response FAIL")
 
 
 async def detect_emotion(text: str) -> str:
     """Metinden duygu tonu çıkar."""
-    from prompts.hocaefendi_prompt import EMOTION_DETECTION_PROMPT
-
     messages = [
         {
             "role": "user",
-            "content": EMOTION_DETECTION_PROMPT.format(text=text[:500])
+            "content": f"Bu metnin duygusal tonunu tek kelimeyle belirt. Seçenekler: neutral, thoughtful, joyful, serious, compassionate, sorrowful\n\nMetin: {text[:500]}"
         }
     ]
 
-    # Duygu tespiti için validate_response'u bypass et
     payload = {
         "model": OLLAMA_MODEL,
         "messages": messages,
@@ -90,7 +96,7 @@ async def detect_emotion(text: str) -> str:
         "options": {"num_ctx": 2048, "temperature": 0.1}
     }
 
-    async with httpx.AsyncClient(timeout=120.0) as client:
+    async with httpx.AsyncClient(timeout=320.0) as client:
         response = await client.post(
             f"{OLLAMA_BASE_URL}/api/chat",
             json=payload
@@ -98,7 +104,6 @@ async def detect_emotion(text: str) -> str:
         result = response.json()["message"]["content"].strip().lower()
 
     valid = ["neutral", "thoughtful", "joyful", "serious", "compassionate", "sorrowful"]
-    # İlk geçerli kelimeyi bul
     for word in result.split():
         if word in valid:
             return word

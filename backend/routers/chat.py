@@ -1,97 +1,150 @@
-# backend/routers/chat.py
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from prompts.hocaefendi_prompt import SYSTEM_PROMPT
 from services import llm_service, rag_service
 from services.emotion_service import detect_emotion
+from core.limiter import limiter
 import re
 
+
+def post_process(text: str) -> str:
+    # 1. Uydurma ayet/hadis numaralarını temizle
+    text = re.sub(r'\b\d{1,3}:\d{1,3}\b', '', text)
+    text = re.sub(r'\([^)]*\d{1,3}[:/]\d{1,3}[^)]*\)', '', text)
+    text = re.sub(r'[Ss]ûr[ae][a-zA-ZğüşıöçĞÜŞİÖÇ\s]+,?\s*\d+', '', text)
+
+    # 2. Liste işaretlerini kaldır
+    text = re.sub(r'^\s*[-•*]\s+', '', text, flags=re.MULTILINE)
+    text = re.sub(r'^\s*\d+[.)]\s+', '', text, flags=re.MULTILINE)
+
+    # 3. Markdown temizle
+    text = re.sub(r'\*\*(.*?)\*\*', r'\1', text)
+    text = re.sub(r'\*(.*?)\*', r'\1', text)
+    text = re.sub(r'^#{1,3}\s+', '', text, flags=re.MULTILINE)
+
+    # 4. Paragraf sayısını sınırla (max 5) — eski kodda [8] yazıyordu, [:5] olmalı
+    paragraphs = [p.strip() for p in text.split('\n\n') if p.strip()]
+    if len(paragraphs) > 5:
+        paragraphs = paragraphs[:5]
+    text = '\n\n'.join(paragraphs)
+
+    # 5. Fazla boş satırları temizle
+    text = re.sub(r'\n{3,}', '\n\n', text)
+
+    return text.strip()
+
+
+def estimate_tokens(message: str) -> int:
+    msg = message.lower().strip()
+
+    greetings = ['nasılsınız', 'merhaba', 'selamün', 'esselam',
+                 'iyi misiniz', 'ne haber', 'hayırlı']
+    if any(g in msg for g in greetings) and len(msg) < 60:
+        return 150
+
+    short_q = ['ne demek', 'nedir', 'kimdir', 'ne zaman',
+               'kaç', 'hangi', 'kısaca', 'özetle']
+    if any(q in msg for q in short_q):
+        return 220
+
+    deep_q = ['neden', 'nasıl', 'açıklar mısınız', 'felsefi',
+              'hakikat', 'mana', 'hikmet', 'tefekkür',
+              'anlat', 'anlayamıyorum', 'ızdırap', 'sıkıntı']
+    if any(d in msg for d in deep_q):
+        return 500
+
+    return 320
+
+
 router = APIRouter()
+
 
 class ChatRequest(BaseModel):
     message: str
     history: list[dict] = []
     use_rag: bool = True
     stream: bool = False
-    top_k: int = 4
+    top_k: int = 15
+
 
 class ChatResponse(BaseModel):
     text: str
     emotion: str
     sources: list[str] = []
 
-def build_messages(user_message: str, history: list[dict], context: str = "") -> list[dict]:
-    """Sistem promptu + geçmiş + yeni mesajı birleştir."""
-    # Sohbet geçmişini düz metin olarak hazırla
+
+def build_messages(user_message: str, history: list[dict], context: str = "", emotion: str = "tefekkür") -> list[dict]:
     chat_history_text = ""
     if history:
         lines = []
         for msg in history[-10:]:
             role = "Siz" if msg.get("role") == "user" else "Hocaefendi"
             lines.append(f"{role}: {msg.get('content', '')}")
-        chat_history_text = "\\n".join(lines)
+        chat_history_text = "\n".join(lines)
 
-    # Prompt'taki {context} ve {chat_history} yerlerine koy
     system_content = SYSTEM_PROMPT.replace(
         "{context}", context if context else "(Bağlam bilgisi mevcut değil.)"
     ).replace(
         "{chat_history}", chat_history_text if chat_history_text else "(Henüz sohbet geçmişi yok.)"
+    ).replace(
+        "{emotion}", emotion
+    ).replace(
+        "{telif}", emotion
     )
 
     messages = [{"role": "system", "content": system_content}]
     messages.append({"role": "user", "content": user_message})
-
     return messages
 
+
 @router.post("/message", response_model=ChatResponse)
-async def send_message(request: ChatRequest):
+@limiter.limit("10/minute")
+async def send_message(request: Request, body: ChatRequest):
     context = ""
     sources = []
-    if request.use_rag:
-        context = rag_service.retrieve_context(request.message, k=request.top_k)
-        
-        # DEBUG logları mevcut haliyle kalabilir veya kaldırılabilir.
+    if body.use_rag:
+        context = rag_service.retrieve_context(body.message, k=body.top_k)
         print(f"📚 Context uzunluğu: {len(context)} karakter")
         print(f"📚 Context önizleme: {context[:150]}")
-        
         if context:
-            # --- GÜNCELLENEN BÖLÜM BAŞLANGICI ---
-            # 1. Regex Düzeltmesi: '[kaynak_adı]' formatını yakalamak için r'\[(.+?)\]' kullanıldı.
-            # 2. Tekilleştirme Yöntemi: list(dict.fromkeys(...)) ile hem daha performanslı
-            #    hem de kaynakların metindeki ilk geçiş sırasını koruyan bir tekilleştirme yapıldı.
-            found_sources = re.findall(r'\[(.+?)\]', context)
+            found_sources = re.findall(r'$(.+?)$', context)
             if found_sources:
                 sources = list(dict.fromkeys(found_sources))
-            
-            print(f"📚 Bulunan sources: {sources}") # Güncellenmiş debug çıktısı
-            # --- GÜNCELLENEN BÖLÜM SONU ---
+            print(f"📚 Bulunan sources: {sources}")
 
-    messages = build_messages(request.message, request.history, context)
+    input_emotion = detect_emotion(body.message)
+    messages = build_messages(body.message, body.history, context, input_emotion)
     response_text = await llm_service.chat(messages)
-    emotion = detect_emotion(response_text)
-    
-    # İsteğe bağlı: Kullanıcıya daha temiz bir metin sunmak için yanıttan kaynak etiketlerini temizle
-    cleaned_response_text = re.sub(r'\s*\[.*?\]\s*', '', response_text).strip()
 
-    return ChatResponse(text=cleaned_response_text, emotion=emotion, sources=sources)
+    output_emotion = detect_emotion(response_text)
+    cleaned_response_text = post_process(
+        re.sub(r'\s*$.*?$\s*', '', response_text).strip()
+    )
+
+    return ChatResponse(text=cleaned_response_text, emotion=output_emotion, sources=sources)
+
 
 @router.post("/stream")
-async def stream_message(request: ChatRequest):
+@limiter.limit("10/minute")
+async def stream_message(request: Request, body: ChatRequest):
+    input_emotion = detect_emotion(body.message)
     context = ""
     sources = []
-    if request.use_rag:
-        context = rag_service.retrieve_context(request.message, k=request.top_k)
+    if body.use_rag:
+        context = rag_service.retrieve_context(body.message, k=body.top_k)
         if context:
-            found_sources = re.findall(r'\[(.+?)\]', context)
+            found_sources = re.findall(r'$(.+?)$', context)
             if found_sources:
                 sources = list(dict.fromkeys(found_sources))
 
-    messages = build_messages(request.message, request.history, context)
+    messages = build_messages(body.message, body.history, context, input_emotion)
+
+    # Soru tipine göre token bütçesi
+    max_tokens = estimate_tokens(body.message)
 
     async def generate():
         import json
-        # Kaynak adı + içeriği birlikte gönder
         source_details = []
         if context:
             parts = context.split("\n\n---\n\n")
@@ -105,10 +158,11 @@ async def stream_message(request: ChatRequest):
                         "content": content[:500]
                     })
         yield f"[SOURCES]{json.dumps(source_details, ensure_ascii=False)}[/SOURCES]"
-        async for token in llm_service.chat_stream(messages):
+        async for token in llm_service.chat_stream(messages, max_tokens=max_tokens):
             yield token
 
     return StreamingResponse(generate(), media_type="text/plain")
+
 
 @router.get("/health")
 async def health():

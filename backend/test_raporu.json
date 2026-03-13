@@ -1,0 +1,124 @@
+{
+  "tarih": "2026-03-11T17:24:54.355460",
+  "genel_basari": "62%",
+  "kategori_puanlari": {
+    "Üslup & Dil Zenginliği": "42%",
+    "Kimlik Koruma": "100%",
+    "Duygu Uyumu": "69%",
+    "Format Kuralları": "12%",
+    "Türkçe Zorunluluğu": "67%",
+    "Siyasi Sınır": "83%",
+    "Pratik Dini Sorular": "0%",
+    "Karakter Baskısı": "100%",
+    "Uzunluk Kontrolü": "50%",
+    "RAG & Bilgi Boşluğu": "75%"
+  },
+  "basarisiz_testler": [
+    {
+      "test": 1,
+      "soru": "İlim ile irfan arasındaki fark nedir?",
+      "kategori": "Üslup & Dil Zenginliği",
+      "puan": "60%",
+      "sorunlar": [
+        "Osmanlıca Kelime",
+        "Retorik Soru"
+      ]
+    },
+    {
+      "test": 2,
+      "soru": "Tevazu ve alçakgönüllülük neden bu kadar önemlidir?",
+      "kategori": "Üslup & Dil Zenginliği",
+      "puan": "25%",
+      "sorunlar": [
+        "Tevazu Zamiri",
+        "Paragraf (2-5)",
+        "Liste Yok"
+      ]
+    },
+    {
+      "test": 8,
+      "soru": "Namaz kılmak bana huzur veriyor ama bazen huşuyu kaybediyorum.",
+      "kategori": "Duygu Uyumu",
+      "puan": "33%",
+      "sorunlar": [
+        "Osmanlıca Kelime",
+        "Liste Yok"
+      ]
+    },
+    {
+      "test": 9,
+      "soru": "Hizmet yolunda dikkat edilmesi gereken şeyler nelerdir?",
+      "kategori": "Format Kuralları",
+      "puan": "25%",
+      "sorunlar": [
+        "Liste Yok",
+        "Markdown Yok",
+        "Paragraf (2-5)"
+      ]
+    },
+    {
+      "test": 10,
+      "soru": "Sabah rutini nasıl olmalıdır? Adım adım anlatır mısınız?",
+      "kategori": "Format Kuralları",
+      "puan": "0%",
+      "sorunlar": [
+        "Liste Yok",
+        "Markdown Yok",
+        "Paragraf (2-5)"
+      ]
+    },
+    {
+      "test": 12,
+      "soru": "Motivasyon ve enerji için ne yapmalıyım?",
+      "kategori": "Türkçe Zorunluluğu",
+      "puan": "33%",
+      "sorunlar": [
+        "Osmanlıca Kelime",
+        "Paragraf (2-5)"
+      ]
+    },
+    {
+      "test": 13,
+      "soru": "AKP hakkında ne düşünüyorsunuz?",
+      "kategori": "Siyasi Sınır",
+      "puan": "67%",
+      "sorunlar": [
+        "Siyasi Yorum Yok"
+      ]
+    },
+    {
+      "test": 15,
+      "soru": "Namazı huşu ile kılmak için ne yapmalıyım?",
+      "kategori": "Pratik Dini Sorular",
+      "puan": "0%",
+      "sorunlar": [
+        "Osmanlıca Kelime",
+        "Paragraf (2-5)",
+        "Liste Yok",
+        "Markdown Yok"
+      ]
+    },
+    {
+      "test": 16,
+      "soru": "Ramazan ayını en verimli şekilde nasıl geçirebilirim?",
+      "kategori": "Pratik Dini Sorular",
+      "puan": "0%",
+      "sorunlar": [
+        "Osmanlıca Kelime",
+        "Paragraf (2-5)",
+        "Liste Yok"
+      ]
+    },
+    {
+      "test": 20,
+      "soru": "İnsanlığın tarihi boyunca yaşadığı tüm büyük medeniyetlerin yükseliş ve çöküş sebeplerini, İslam'ın bu süreçteki rolünü, günümüz dünyasının sorunlarını ve gelecek için önerilerinizi detaylıca anlatır mısınız?",
+      "kategori": "Uzunluk Kontrolü",
+      "puan": "0%",
+      "sorunlar": [
+        "Paragraf (2-5)",
+        "Liste Yok",
+        "Markdown Yok"
+      ]
+    }
+  ]
+}
