@@ -99,3 +99,4 @@ temp/
 *.mkv"backend/data/bamteli/" 
 "backend/data/books/" 
 "backend/data/pdfs/" 
+backend/data/ 
