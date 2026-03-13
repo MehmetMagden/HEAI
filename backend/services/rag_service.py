@@ -102,6 +102,10 @@ def ingest_pdf(pdf_path: str) -> int:
 
 
 def retrieve_context(query: str, k: int = 4) -> str:
+
+    if len(query.strip().split()) <= 3:
+        return ""
+
     collection = get_vectorstore()
 
     query_embedding = _embed_model.encode(
