@@ -19,6 +19,9 @@ class ChatState {
   final String? error;
   final String currentEmotion;
   final int topK; 
+  final bool showQueuePopup;
+  final int queuePosition;
+  final int estimatedWait;  
 
   ChatState({
     required this.messages,
@@ -26,6 +29,9 @@ class ChatState {
     this.error,
     this.currentEmotion = 'tefekkur',
     this.topK = 15,
+    this.showQueuePopup = false,
+    this.queuePosition = 0,
+    this.estimatedWait = 0,
   });
 
   ChatState copyWith({
@@ -33,7 +39,10 @@ class ChatState {
     bool? isLoading,
     String? error,
     String? currentEmotion,
-    int? topK,   
+    int? topK,
+    bool? showQueuePopup,
+    int? queuePosition,
+    int? estimatedWait,   
   }) {
     return ChatState(
       messages: messages ?? this.messages,
@@ -41,6 +50,9 @@ class ChatState {
       error: error ?? this.error,
       currentEmotion: currentEmotion ?? this.currentEmotion,
       topK: topK ?? this.topK,
+      showQueuePopup: showQueuePopup ?? this.showQueuePopup,
+      queuePosition: queuePosition ?? this.queuePosition,
+      estimatedWait: estimatedWait ?? this.estimatedWait,
     );
   }
 }
@@ -52,7 +64,8 @@ class ChatNotifier extends StateNotifier<ChatState> {
   final List<String> _audioQueue = [];
   bool _isPlaying = false;
   AudioPlayer? _audioPlayer;
-  final String _baseUrl = 'https://aimaden.com'; // ApiService'teki base URL ne ise onu yaz
+  // final String _baseUrl = 'https://aimaden.com'; // ApiService'teki base URL ne ise onu yaz
+  final String _baseUrl = ApiService.baseUrl;
 
 
 
@@ -295,6 +308,26 @@ class ChatNotifier extends StateNotifier<ChatState> {
           } else {
             continue; // Henüz tamamlanmadı, biriktirmeye devam
           }
+        } // QUEUE tag kontrolü
+        if (chunk.contains('[QUEUE]')) {
+          final start = chunk.indexOf('[QUEUE]') + '[QUEUE]'.length;
+          final end = chunk.indexOf('[/QUEUE]');
+          if (end > start) {
+            try {
+              final data = jsonDecode(chunk.substring(start, end));
+              state = state.copyWith(
+                showQueuePopup: true,
+                queuePosition: data['position'] as int,
+                estimatedWait: data['estimated_seconds'] as int,
+              );
+            } catch (_) {}
+          }
+          continue;
+        }
+
+        if (chunk == '[QUEUE_START]') {
+          state = state.copyWith(showQueuePopup: false);
+          continue;
         } else if (chunk.contains('[SOURCES]')) {
           final sourcesStart = chunk.indexOf('[SOURCES]') + '[SOURCES]'.length;
           sourcesBuffer = chunk.substring(sourcesStart);

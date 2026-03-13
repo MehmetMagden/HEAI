@@ -289,6 +289,50 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               },
             ),
           ),
+
+          // Queue popup
+          if (chatState.showQueuePopup)
+            Positioned(
+              top: 16,
+              left: 16,
+              right: 100, // sağda emotion image var, taşmasın
+              child: Material(
+                elevation: 8,
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF5D4037),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    children: [
+                      const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'Sıranız: ${chatState.queuePosition}  •  '
+                          '~${chatState.estimatedWait} sn',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),          
+
+
         ],
       ),
     );
